@@ -58,20 +58,13 @@ export async function parseTurnServer(
     const iceServers = (await response
       .json()
       .then((data) => data.iceServers)) as RTCIceServer;
-
-    iceServers.urls = "turns:turn.cloudflare.com:5349";
-    // if (Array.isArray(iceServers.urls)) {
-    // iceServers.urls = iceServers.urls
-    //   .filter((url) => url.startsWith("turn"))
-    //   .map((url) => url.replace(/\?transport=.*$/, ""));
-    // // deduplicate
-    // iceServers.urls = [...new Set(iceServers.urls)];
-    // }
-
+      
     console.log("cloudflare iceServers:", iceServers);
     return iceServers satisfies RTCIceServer;
   } else {
-    throw new Error(`parseTurnServer: invalid method ${authMethod}`);
+    throw new Error(
+      `parseTurnServer: invalid method ${authMethod}`,
+    );
   }
 }
 
