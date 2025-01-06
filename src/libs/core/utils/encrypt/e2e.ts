@@ -1,5 +1,4 @@
-import { getRandomBytes, isCryptoSubtleAvailable } from ".";
-import { getCryptoJS } from ".";
+import { isCryptoSubtleAvailable } from ".";
 
 const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
 // check if the base64 string is valid
@@ -14,7 +13,7 @@ export async function hashPassword(
   iterations = 100000,
   hash = "SHA-256",
 ): Promise<string> {
-  if (isCryptoSubtleAvailable()) {
+  if (isCryptoSubtleAvailable) {
     // using Web Crypto API
     // generate random salt
     const salt = crypto.getRandomValues(
@@ -53,29 +52,26 @@ export async function hashPassword(
     ]);
     return btoa(String.fromCharCode(...combined));
   } else {
+    const EncryptWorker = await import(
+      "./encrypt-worker?worker"
+    ).then((module) => module.default);
     // using crypto-js
-    const CryptoJS = await getCryptoJS();
+    const worker = new EncryptWorker();
+    worker.postMessage({
+      type: "hashPassword",
+      data: { password, saltLength, iterations },
+    });
 
-    // generate random salt
-    const salt = await getRandomBytes(saltLength);
-
-    // derive key
-    const key = CryptoJS.PBKDF2(
-      password,
-      CryptoJS.lib.WordArray.create(salt),
-      {
-        keySize: 256 / 32,
-        iterations: iterations,
-        hasher: CryptoJS.algo.SHA256,
-      },
-    );
-
-    // combine salt and hash
-    const combinedWordArray =
-      CryptoJS.lib.WordArray.create(salt).concat(key);
-
-    // return base64 encoded string
-    return CryptoJS.enc.Base64.stringify(combinedWordArray);
+    return new Promise((resolve, reject) => {
+      worker.onmessage = (event) => {
+        resolve(event.data.data);
+        worker.terminate();
+      };
+      worker.onerror = (error) => {
+        reject(error);
+        worker.terminate();
+      };
+    });
   }
 }
 
@@ -91,7 +87,7 @@ export async function comparePasswordHash(
     throw new Error("Invalid Base64 string");
   }
 
-  if (isCryptoSubtleAvailable()) {
+  if (isCryptoSubtleAvailable) {
     // Using Web Crypto API
     try {
       // decode base64
@@ -138,43 +134,30 @@ export async function comparePasswordHash(
       throw new Error("Failed to compare password");
     }
   } else {
-    // Using crypto-js
-    const CryptoJS = await getCryptoJS();
-    try {
-      // decode base64
-      const combinedWordArray =
-        CryptoJS.enc.Base64.parse(storedHash);
-
-      // extract salt and hash
-      const saltWords = CryptoJS.lib.WordArray.create(
-        combinedWordArray.words.slice(0, saltLength / 4),
-        saltLength,
-      );
-
-      const storedHashWords = CryptoJS.lib.WordArray.create(
-        combinedWordArray.words.slice(saltLength / 4),
-      );
-
-      // derive hash
-      const derivedKey = CryptoJS.PBKDF2(
+    const EncryptWorker = await import(
+      "./encrypt-worker?worker"
+    ).then((module) => module.default);
+    const worker = new EncryptWorker();
+    worker.postMessage({
+      type: "comparePasswordHash",
+      data: {
         password,
-        saltWords,
-        {
-          keySize: 256 / 32,
-          iterations: iterations,
-          hasher: CryptoJS.algo.SHA256,
-        },
-      );
+        storedHash,
+        saltLength,
+        iterations,
+      },
+    });
 
-      // compare hash
-      return (
-        CryptoJS.enc.Hex.stringify(derivedKey) ===
-        CryptoJS.enc.Hex.stringify(storedHashWords)
-      );
-    } catch (error) {
-      console.error("Error comparing password:", error);
-      throw new Error("Failed to compare password");
-    }
+    return new Promise((resolve, reject) => {
+      worker.onmessage = (event) => {
+        resolve(event.data.data);
+        worker.terminate();
+      };
+      worker.onerror = (error) => {
+        reject(error);
+        worker.terminate();
+      };
+    });
   }
 }
 
@@ -183,7 +166,7 @@ export async function encryptData(
   password: string,
   data: string,
 ): Promise<string> {
-  if (isCryptoSubtleAvailable()) {
+  if (isCryptoSubtleAvailable) {
     // using Web Crypto API
     // create random salt and iv
     const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -213,39 +196,24 @@ export async function encryptData(
     ]);
     return btoa(String.fromCharCode(...combinedData));
   } else {
-    // 使用 crypto-js 实现
-    const CryptoJS = await getCryptoJS();
-
-    // create random salt and iv
-    const salt = await getRandomBytes(16);
-    const iv = await getRandomBytes(16);
-
-    // derive key
-    const key = CryptoJS.PBKDF2(
-      password,
-      CryptoJS.lib.WordArray.create(salt),
-      {
-        keySize: 256 / 32,
-        iterations: 100000,
-        hasher: CryptoJS.algo.SHA256,
-      },
-    );
-
-    // encrypt data
-    const encrypted = CryptoJS.AES.encrypt(data, key, {
-      iv: CryptoJS.lib.WordArray.create(iv),
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7,
+    const EncryptWorker = await import(
+      "./encrypt-worker?worker"
+    ).then((module) => module.default);
+    const worker = new EncryptWorker();
+    worker.postMessage({
+      type: "encryptData",
+      data: { password, data },
     });
-
-    // combine salt, iv and ciphertext
-    const combinedWordArray = CryptoJS.lib.WordArray.create(
-      salt,
-    )
-      .concat(CryptoJS.lib.WordArray.create(iv))
-      .concat(encrypted.ciphertext);
-
-    return CryptoJS.enc.Base64.stringify(combinedWordArray);
+    return new Promise((resolve, reject) => {
+      worker.onmessage = (event) => {
+        resolve(event.data.data);
+        worker.terminate();
+      };
+      worker.onerror = (error) => {
+        reject(error);
+        worker.terminate();
+      };
+    });
   }
 }
 
@@ -254,7 +222,7 @@ export async function decryptData(
   password: string,
   encryptedData: string,
 ): Promise<string> {
-  if (isCryptoSubtleAvailable()) {
+  if (isCryptoSubtleAvailable) {
     // using Web Crypto API
     // decode base64
     const combinedData = Uint8Array.from(
@@ -285,46 +253,24 @@ export async function decryptData(
     const decoder = new TextDecoder();
     return decoder.decode(decryptedData);
   } else {
-    // using crypto-js
-    const CryptoJS = await getCryptoJS();
-    // decode base64
-    const combinedWordArray =
-      CryptoJS.enc.Base64.parse(encryptedData);
-
-    // extract salt, iv and ciphertext
-    const salt = CryptoJS.lib.WordArray.create(
-      combinedWordArray.words.slice(0, 4),
-      16,
-    );
-    const iv = CryptoJS.lib.WordArray.create(
-      combinedWordArray.words.slice(4, 8),
-      16,
-    );
-    const ciphertext: CryptoJS.lib.WordArray =
-      CryptoJS.lib.WordArray.create(
-        combinedWordArray.words.slice(8),
-      );
-
-    // derive key
-    const key = CryptoJS.PBKDF2(password, salt, {
-      keySize: 256 / 32,
-      iterations: 100000,
-      hasher: CryptoJS.algo.SHA256,
+    const EncryptWorker = await import(
+      "./encrypt-worker?worker"
+    ).then((module) => module.default);
+    const worker = new EncryptWorker();
+    worker.postMessage({
+      type: "decryptData",
+      data: { password, data: encryptedData },
     });
-
-    // decrypt
-    const decrypted = CryptoJS.AES.decrypt(
-      { ciphertext: ciphertext } as any,
-      key,
-      {
-        iv: iv,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7,
-      },
-    );
-
-    // decode to string
-    return decrypted.toString(CryptoJS.enc.Utf8);
+    return new Promise((resolve, reject) => {
+      worker.onmessage = (event) => {
+        resolve(event.data.data);
+        worker.terminate();
+      };
+      worker.onerror = (error) => {
+        reject(error);
+        worker.terminate();
+      };
+    });
   }
 }
 
@@ -334,7 +280,7 @@ async function getKeyMaterial(
 ): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const encodedPassword = encoder.encode(password);
-  if (isCryptoSubtleAvailable()) {
+  if (isCryptoSubtleAvailable) {
     return crypto.subtle.importKey(
       "raw",
       encodedPassword,
@@ -355,7 +301,7 @@ async function deriveKey(
   keyMaterial: CryptoKey,
   salt: Uint8Array,
 ): Promise<CryptoKey> {
-  if (isCryptoSubtleAvailable()) {
+  if (isCryptoSubtleAvailable) {
     return crypto.subtle.deriveKey(
       {
         name: "PBKDF2",
@@ -374,4 +320,3 @@ async function deriveKey(
     );
   }
 }
-

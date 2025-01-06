@@ -77,17 +77,15 @@ import { messageStores } from "./libs/core/messge";
 import { sleep } from "./libs/utils/sleep";
 import { Label } from "./components/ui/label";
 import { Textarea } from "./components/ui/textarea";
-import {
-  AudioPlayerProvider,
-  useAudioPlayer,
-} from "./components/audio-player";
+import { AudioPlayerProvider } from "./components/audio-player";
 
 const createWakeLock = () => {
   const [wakeLock, setWakeLock] =
     createSignal<WakeLockSentinel | null>(null);
 
   const requestWakeLock = async () => {
-    if (!navigator.wakeLock) {
+    if (!("wakeLock" in navigator)) {
+      console.warn("Wake Lock API is not supported");
       return;
     }
     const lock = wakeLock();
@@ -443,62 +441,7 @@ const InnerApp = (props: ParentProps) => {
         <div class="flex-1">
           <ErrorBoundary
             fallback={(err: Error, reset) => (
-              <div
-                class="flex size-full max-w-[100vw] flex-col justify-center gap-2
-                  bg-background/80 px-2 py-4 backdrop-blur"
-              >
-                <h3 class="h3 mb-4">
-                  {t("common.error_boundary.title")}
-                </h3>
-                <Label>
-                  {t("common.error_boundary.description")}
-                </Label>
-                <div class="flex h-full flex-col gap-2">
-                  <p>{err.message}</p>
-                  {/* Print stack trace */}
-                  <Textarea
-                    readOnly
-                    class="flex-1 overflow-x-auto whitespace-pre-wrap text-nowrap
-                      text-xs scrollbar-thin"
-                    value={err.stack}
-                  />
-                </div>
-                <div class="flex gap-2 self-end">
-                  <Show when={err.stack}>
-                    {(stack) => (
-                      <Button
-                        class="gap-2"
-                        onClick={() =>
-                          navigator.clipboard
-                            .writeText(stack())
-                            .then(() => {
-                              toast.success(
-                                t(
-                                  "common.notification.copy_success",
-                                ),
-                              );
-                            })
-                        }
-                        variant="outline"
-                      >
-                        <IconContentCopy class="size-4" />
-                        {t("common.action.copy")}
-                      </Button>
-                    )}
-                  </Show>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      reset();
-                      location.reload();
-                    }}
-                    class="gap-2"
-                  >
-                    <IconResetWrench class="size-4" />
-                    {t("common.error_boundary.reset")}
-                  </Button>
-                </div>
-              </div>
+              <ErrorComponent error={err} reset={reset} />
             )}
           >
             {props.children}
@@ -506,6 +449,72 @@ const InnerApp = (props: ParentProps) => {
         </div>
       </div>
     </>
+  );
+};
+
+const ErrorComponent = (props: {
+  error: Error;
+  reset: () => void;
+}) => {
+  return (
+    <div
+      class="flex size-full max-w-[100vw] flex-col justify-center gap-2
+        bg-background/80 px-2 py-4 backdrop-blur"
+    >
+      <h3 class="h3 mb-4">
+        {t("common.error_boundary.title")}
+      </h3>
+      <Label>
+        {t("common.error_boundary.description")}
+      </Label>
+      <div class="flex h-full flex-col gap-2">
+        <p>{props.error.message}</p>
+        {/* Print stack trace */}
+        <Textarea
+          readOnly
+          class="flex-1 overflow-x-auto whitespace-pre-wrap text-nowrap
+            text-xs scrollbar-thin"
+          value={props.error.stack}
+        />
+      </div>
+      <div class="flex gap-2 self-end">
+        <Show
+          when={
+            "clipboard" in navigator && props.error.stack
+          }
+        >
+          {(stack) => (
+            <Button
+              class="gap-2"
+              onClick={() =>
+                navigator.clipboard
+                  .writeText(stack())
+                  .then(() => {
+                    toast.success(
+                      t("common.notification.copy_success"),
+                    );
+                  })
+              }
+              variant="outline"
+            >
+              <IconContentCopy class="size-4" />
+              {t("common.action.copy")}
+            </Button>
+          )}
+        </Show>
+        <Button
+          variant="outline"
+          onClick={() => {
+            props.reset();
+            location.reload();
+          }}
+          class="gap-2"
+        >
+          <IconResetWrench class="size-4" />
+          {t("common.error_boundary.reset")}
+        </Button>
+      </div>
+    </div>
   );
 };
 

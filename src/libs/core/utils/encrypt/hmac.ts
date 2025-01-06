@@ -1,4 +1,7 @@
-import { isCryptoSubtleAvailable, getCryptoJS } from ".";
+import {
+  isCryptoSubtleAvailable,
+  CryptoJSPromise,
+} from ".";
 
 // generateHMAC function
 export async function generateHMAC(
@@ -9,7 +12,7 @@ export async function generateHMAC(
   const keyData = encoder.encode(key);
   const messageData = encoder.encode(message);
 
-  if (isCryptoSubtleAvailable()) {
+  if (isCryptoSubtleAvailable) {
     // Use Web Crypto API
     const cryptoKey = await window.crypto.subtle.importKey(
       "raw",
@@ -26,7 +29,10 @@ export async function generateHMAC(
     return arrayBufferToBase64(signature);
   } else {
     // Replace with crypto-js as an alternative
-    const CryptoJS = await getCryptoJS();
+    const CryptoJS = await CryptoJSPromise;
+    if (!CryptoJS) {
+      throw new Error("CryptoJS is not available");
+    }
     const keyWordArray = CryptoJS.enc.Utf8.parse(key);
     const messageWordArray =
       CryptoJS.enc.Utf8.parse(message);

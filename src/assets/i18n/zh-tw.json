@@ -208,9 +208,7 @@
       "screen": "螢幕",
       "camera": "攝影機"
     },
-    "no_stream": "沒有串流",
-    "no_support": "不支援",
-    "no_support_description": "請在安全的上下文中使用此功能"
+    "no_stream": "沒有串流"
   },
   "browser_unsupported": {
     "title": "抱歉，您的瀏覽器不受支援",

@@ -8,6 +8,12 @@ import {
   onMount,
 } from "solid-js";
 
+if (!("mediaDevices" in navigator)) {
+  throw new Error(
+    "Media Devices API is not supported, please use in secure context",
+  );
+}
+
 const [mediaDevices, { refetch: refetchDevices }] =
   createResource(
     () => navigator.mediaDevices.enumerateDevices(),

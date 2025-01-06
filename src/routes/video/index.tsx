@@ -59,22 +59,6 @@ import { createFullscreen } from "@/libs/hooks/fullscreen";
 import { FlexButton } from "./components/flex-button";
 
 export default function Video() {
-  if (!("mediaDevices" in navigator)) {
-    return (
-      <div
-        class="mx-auto flex min-h-[calc(100%_-_3rem)] flex-col items-center
-          justify-center gap-8 p-4"
-      >
-        <h2 class="max-6-xs text-6xl font-thin uppercase">
-          {t("video.no_support")}
-        </h2>
-        <p class="text-sm text-muted-foreground">
-          {t("video.no_support_description")}
-        </p>
-      </div>
-    );
-  }
-
   const { roomStatus } = useWebRTC();
 
   const isMobile = createIsMobile();
@@ -430,7 +414,6 @@ const LocalToolbar = (props: {
           ? t("common.action.change")
           : t("common.action.select")}
       </FlexButton>
-
       <Show when={speakerAudioTrack()}>
         <FlexButton
           size="sm"
@@ -454,7 +437,6 @@ const LocalToolbar = (props: {
             : t("common.action.mute")}
         </FlexButton>
       </Show>
-
       <Show when={microphoneAudioTrack()}>
         <FlexButton
           size="sm"
@@ -478,7 +460,6 @@ const LocalToolbar = (props: {
             : t("common.action.mute")}
         </FlexButton>
       </Show>
-
       <Show when={videoTrack()}>
         <FlexButton
           size="sm"
@@ -498,7 +479,6 @@ const LocalToolbar = (props: {
             : t("common.action.stop")}
         </FlexButton>
       </Show>
-
       <Show when={audioTracks().length > 0 || videoTrack()}>
         <FlexButton
           size="sm"
@@ -514,7 +494,6 @@ const LocalToolbar = (props: {
           {t("common.action.settings")}
         </FlexButton>
       </Show>
-
       <Show when={localStream()}>
         <FlexButton
           size="sm"

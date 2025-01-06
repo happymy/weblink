@@ -35,6 +35,8 @@ type PeerSessionStatus =
   | "disconnected"
   | "closed";
 
+const ConnectionTimeout = 15000;
+
 export class PeerSession {
   private eventEmitter: MultiEventEmitter<PeerSessionEventMap> =
     new MultiEventEmitter();
@@ -880,8 +882,12 @@ export class PeerSession {
       timer = window.setTimeout(() => {
         connectAbortController.abort();
         this.disconnect();
-        reject(new Error("connect timeout"));
-      }, 10000);
+        reject(
+          new Error(
+            `connect timeout: after ${ConnectionTimeout}ms`,
+          ),
+        );
+      }, ConnectionTimeout);
 
       this.controller?.signal.addEventListener(
         "abort",
@@ -998,8 +1004,12 @@ export class PeerSession {
       const timer = window.setTimeout(() => {
         connectAbortController.abort();
         this.disconnect();
-        reject(new Error("connect timeout"));
-      }, 10000);
+        reject(
+          new Error(
+            `connect timeout: after ${ConnectionTimeout}ms`,
+          ),
+        );
+      }, ConnectionTimeout);
 
       this.controller?.signal.addEventListener(
         "abort",

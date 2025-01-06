@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.4] - 2025-01-05
+
+### Improvements
+
+- Improve the encryption performance when using crypto-js 优化使用 crypto-js 时的加密性能
+
 ## [0.10.3] - 2024-12-14
 
 ### New Features

@@ -1,4 +1,7 @@
-import { getCryptoJS, isCryptoSubtleAvailable } from ".";
+import {
+  CryptoJSPromise,
+  isCryptoSubtleAvailable,
+} from ".";
 
 // strong password generation function
 export async function generateStrongPassword(
@@ -33,7 +36,7 @@ export async function generateStrongPassword(
 
   const remainingLength = length - types.length;
 
-  if (isCryptoSubtleAvailable()) {
+  if (isCryptoSubtleAvailable) {
     // using crypto.getRandomValues to generate random numbers
     const randomValues = new Uint32Array(remainingLength);
     window.crypto.getRandomValues(randomValues);
@@ -43,7 +46,10 @@ export async function generateStrongPassword(
     }
   } else {
     // using crypto-js to generate random numbers
-    const CryptoJS = await getCryptoJS();
+    const CryptoJS = await CryptoJSPromise;
+    if (!CryptoJS) {
+      throw new Error("CryptoJS is not available");
+    }
     const randomWords =
       CryptoJS.lib.WordArray.random(remainingLength).words;
     for (let i = 0; i < remainingLength; i++) {

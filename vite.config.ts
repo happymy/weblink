@@ -87,6 +87,7 @@ export default defineConfig({
     rollupOptions: {
       treeshake: true,
     },
+    minify: true,
   },
   plugins: [
     solidPlugin(),
