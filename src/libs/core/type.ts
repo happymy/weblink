@@ -24,7 +24,6 @@ export interface CreateClient extends Client {
 }
 
 export interface ClientInfo extends TransferClient {
-  statsReports?: any[];
   candidateType?: string;
   onlineStatus:
     | "offline"

@@ -61,10 +61,14 @@ pnpm build
 docker-compose up -d
 ```
 
-启用 SSL 时，需要提供 SSL 证书 `cert.pem` 和密钥 `key.pem` 文件在 `docker/ssl` 目录下，然后运行以下命令：
+启用 SSL 时，需要提供 SSL 证书 `server.crt` 和密钥 `server.pem` 文件在 `docker/ssl` 目录下，然后运行以下命令：
 
 ```bash
-ENABLE_SSL=true docker-compose up -d
+ENABLE_SSL=true && docker compose up -d
+```
+
+```pwsh
+$env:ENABLE_SSL='true' && docker compose up -d
 ```
 
 你也可以使用 Dockerfile 部署到 Docker。

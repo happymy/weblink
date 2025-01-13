@@ -4,8 +4,8 @@ if [ "$ENABLE_SSL" = "true" ]; then
     SSL_LISTEN="listen 443 ssl;"
     SSL_CONFIG=$(
         cat <<EOF
-ssl_certificate /etc/nginx/ssl/cert.pem;
-ssl_certificate_key /etc/nginx/ssl/key.pem;
+ssl_certificate /etc/nginx/ssl/server.crt;
+ssl_certificate_key /etc/nginx/ssl/server.pem;
 EOF
     )
 else

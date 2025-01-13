@@ -1,4 +1,4 @@
-// 创建包含块编号和数据的 ArrayBuffer
+// Create an ArrayBuffer containing the block number and data
 export function buildPacket(
   chunkIndex: number,
   blockIndex: number,
@@ -27,7 +27,7 @@ export function buildPacket(
   return buffer;
 }
 
-  // restore ArrayBuffer, get chunk index and block data
+// restore ArrayBuffer, get chunk index and block data
 export function readPacket(packet: ArrayBuffer): {
   chunkIndex: number;
   blockIndex: number;

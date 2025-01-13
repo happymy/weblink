@@ -37,7 +37,7 @@ export const AudioPlayerProvider = (props: ParentProps) => {
   >([]);
 
   createEffect(() => {
-    const tracks = Object.values(sessionService.clientInfo)
+    const tracks = Object.values(sessionService.clientViewData)
       .flatMap((client) => {
         client.stream?.addEventListener(
           "addtrack",

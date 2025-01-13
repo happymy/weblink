@@ -154,7 +154,7 @@ export class FirebaseClientService
 
     if (roomData.passwordHash) {
       if (!this.password) {
-        this.destroy();
+        this.close();
         throw new Error("password required");
       }
 
@@ -164,12 +164,12 @@ export class FirebaseClientService
       );
 
       if (!passwordMatch) {
-        this.destroy();
+        this.close();
         throw new Error("incorrect password");
       }
     } else {
       this.password = null;
-      toast.info("the room is not password protected");
+      toast.warning("the room is not password protected");
     }
 
     const clientsRef = child(this.roomRef, "/clients");
@@ -231,7 +231,7 @@ export class FirebaseClientService
     const sender =
       this.singlingServices.get(targetClientId);
     if (sender) {
-      sender.destroy();
+      sender.close();
       this.singlingServices.delete(targetClientId);
     }
   }
@@ -288,9 +288,9 @@ export class FirebaseClientService
     this.unsubscribeCallbacks.push(unsubscribe);
   }
 
-  async destroy() {
+  async close() {
     this.singlingServices.forEach((sender) =>
-      sender.destroy(),
+      sender.close(),
     );
     this.unsubscribeCallbacks.map((cb) => cb());
     const clientsRef = child(this.roomRef, "/clients");

@@ -1,10 +1,10 @@
 // signaling/websocket-signaling-service.ts
-import { v4 as uuidv4 } from "uuid";
 import {
   RawSignal,
   ClientSignal,
   SignalingService,
   SignalingServiceEventMap,
+  SignalingServiceStatus,
 } from "../type";
 import {
   encryptData,
@@ -23,8 +23,9 @@ export class WebSocketSignalingService
   private socket: WebSocket;
   private _clientId: string;
   private _targetClientId: string;
+  private _status: SignalingServiceStatus = "init";
   private password: string | null = null;
-  private messageQueue: RawSignal[] = [];
+  private controller: AbortController | null = null;
   constructor(
     socket: WebSocket,
     clientId: string,
@@ -39,26 +40,42 @@ export class WebSocketSignalingService
     this.setSocket(socket);
   }
 
+  get status(): SignalingServiceStatus {
+    return this._status;
+  }
+
   private setSocket(socket: WebSocket) {
-    socket.addEventListener("message", this.onMessage);
-    const handleOpen = () => {
-      this.messageQueue.forEach((signal) => {
-        this.sendSignal(signal);
-      });
-      this.messageQueue.length = 0;
-      this.dispatchEvent("connect", undefined);
+    if (this.controller) {
+      this.controller.abort();
+      this.controller = null;
+    }
+    const controller = new AbortController();
+    const handleOpen = async () => {
+      this.setStatus("connected");
     };
     if (socket.readyState === WebSocket.OPEN) {
       handleOpen();
     } else {
       socket.addEventListener("open", handleOpen, {
         once: true,
+        signal: controller.signal,
       });
     }
-    socket.addEventListener("close", () => {
-      this.dispatchEvent("close", undefined);
+    socket.addEventListener(
+      "close",
+      () => {
+        this.setStatus("disconnected");
+      },
+      {
+        once: true,
+        signal: controller.signal,
+      },
+    );
+    socket.addEventListener("message", this.onMessage, {
+      signal: controller.signal,
     });
 
+    this.controller = controller;
     this.socket = socket;
   }
 
@@ -113,9 +130,18 @@ export class WebSocketSignalingService
     return this._targetClientId;
   }
 
+  setStatus(status: SignalingServiceStatus) {
+    this._status = status;
+    if (status !== "init") {
+      this.dispatchEvent("statuschange", status);
+    }
+  }
+
   async sendSignal(signal: RawSignal): Promise<void> {
     if (this.socket.readyState !== WebSocket.OPEN) {
-      throw new Error("socket is not open");
+      throw new Error(
+        `[WebSocketSignalingService] socket is not open`,
+      );
     }
 
     if (this.password) {
@@ -134,10 +160,6 @@ export class WebSocketSignalingService
         data: signal.data,
       } as ClientSignal,
     };
-    if (this.socket.readyState !== WebSocket.OPEN) {
-      this.messageQueue.push(signal);
-      return;
-    }
 
     this.socket.send(JSON.stringify(message));
   }
@@ -168,12 +190,12 @@ export class WebSocketSignalingService
     this.dispatchEvent("signal", message);
   };
 
-  destroy() {
+  close() {
+    this.setStatus("closed");
     this.eventEmitter.clearListeners();
     this.socket.removeEventListener(
       "message",
       this.onMessage,
     );
-    // Additional cleanup if necessary
   }
 }

@@ -454,7 +454,7 @@ export const WebRTCProvider: Component<
     }
 
     await cs.createClient().catch((err) => {
-      sessionService.destoryService();
+      sessionService.removeService();
       throw err;
     });
 
@@ -534,7 +534,7 @@ export const WebRTCProvider: Component<
 
     cs.listenForLeave((client) => {
       console.log(`client ${client.clientId} leave`);
-      sessionService.destorySession(client.clientId);
+      sessionService.removeSession(client.clientId);
     });
 
     setRoomStatus("roomId", clientProfile.roomId);
@@ -694,7 +694,7 @@ export const WebRTCProvider: Component<
       );
       return;
     }
-    const client = sessionService.clientInfo[target];
+    const client = sessionService.clientViewData[target];
     if (client.onlineStatus !== "online") {
       console.warn(
         `can not request file from target: ${target}, client status is ${client.onlineStatus}`,

@@ -15,21 +15,28 @@ import {
   SignalingService,
   Unsubscribe,
   SignalingServiceEventMap,
+  SignalingServiceStatus,
 } from "../type";
 import {
   decryptData,
   encryptData,
 } from "@/libs/core/utils/encrypt/e2e";
-import { EventHandler } from "@/libs/utils/event-emitter";
+import {
+  EventHandler,
+  MultiEventEmitter,
+} from "@/libs/utils/event-emitter";
 
 export class FirebaseSignalingService
   implements SignalingService
 {
+  private eventEmitter =
+    new MultiEventEmitter<SignalingServiceEventMap>();
   private signalsRef;
   private db = getDatabase(app);
   private _clientId: string;
   private _targetClientId: string;
   private password: string | null = null;
+  private _status: SignalingServiceStatus = "init";
   private listeners: Record<
     string,
     {
@@ -90,6 +97,12 @@ export class FirebaseSignalingService
         ...(this.listeners[event] || []),
         { callback: callback.toString(), unsubscribe },
       ];
+    } else {
+      this.eventEmitter.addEventListener(
+        event,
+        callback,
+        options,
+      );
     }
   }
 
@@ -100,16 +113,43 @@ export class FirebaseSignalingService
     callback: EventHandler<SignalingServiceEventMap[K]>,
     options?: boolean | EventListenerOptions,
   ): void {
-    const unsubscribe = this.listeners[event].find(
-      (listener) =>
-        listener.callback === callback.toString(),
-    )?.unsubscribe;
-    if (unsubscribe) {
-      unsubscribe();
-      this.listeners[event] = this.listeners[event].filter(
+    if (event === "signal") {
+      const unsubscribe = this.listeners[event].find(
         (listener) =>
-          listener.callback !== callback.toString(),
+          listener.callback === callback.toString(),
+      )?.unsubscribe;
+      if (unsubscribe) {
+        unsubscribe();
+        this.listeners[event] = this.listeners[
+          event
+        ].filter(
+          (listener) =>
+            listener.callback !== callback.toString(),
+        );
+      }
+    } else {
+      this.eventEmitter.removeEventListener(
+        event,
+        callback,
+        options,
       );
+    }
+  }
+
+  private dispatchEvent<
+    K extends keyof SignalingServiceEventMap,
+  >(event: K, data: SignalingServiceEventMap[K]) {
+    this.eventEmitter.dispatchEvent(event, data);
+  }
+
+  get status(): SignalingServiceStatus {
+    return this._status;
+  }
+
+  private setStatus(status: SignalingServiceStatus) {
+    this._status = status;
+    if (status !== "init") {
+      this.dispatchEvent("statuschange", status);
     }
   }
 
@@ -134,6 +174,7 @@ export class FirebaseSignalingService
   private listenForSignal(
     callback: (signal: ClientSignal) => void,
   ) {
+    this.setStatus("connected");
     return onChildAdded(
       this.signalsRef,
       async (snapshot) => {
@@ -161,6 +202,7 @@ export class FirebaseSignalingService
   }
 
   async clearSignals() {
+    this.setStatus("disconnected");
     const snapshot = await get(this.signalsRef);
 
     snapshot.forEach((childSnapshot) => {
@@ -170,7 +212,8 @@ export class FirebaseSignalingService
     });
   }
 
-  async destroy() {
+  async close() {
+    this.setStatus("closed");
     await this.clearSignals();
     Object.values(this.listeners).forEach((listeners) => {
       listeners.forEach((listener) => {

@@ -363,6 +363,7 @@
       "exit_picture_in_picture": "Exit PIP Mode",
       "switch_picture_in_picture": "Switch PIP Mode",
       "stop": "Stop",
+      "pause": "Pause",
       "continue": "Continue"
     },
     "notification": {

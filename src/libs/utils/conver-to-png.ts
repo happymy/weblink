@@ -1,8 +1,7 @@
-// 定义转换配置的接口
 interface ConvertToPNGOptions {
-  maxWidth?: number; // 最大宽度，默认1920
-  quality?: number; // 压缩质量，默认0.7
-  maxFileSize?: number; // 可选：最大文件大小（字节）
+  maxWidth?: number; // Maximum width, default 1920
+  quality?: number; // Compression quality, default 0.7
+  maxFileSize?: number; // Optional: Maximum file size (bytes)
 }
 
 export async function convertImageToPNG(

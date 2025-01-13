@@ -134,11 +134,11 @@ const FileMessageCard: Component<FileMessageCardProps> = (
 
   const targetClientInfo = createMemo(() => {
     if (isSender()) {
-      return sessionService.clientInfo[
+      return sessionService.clientViewData[
         props.message.target
       ];
     }
-    return sessionService.clientInfo[props.message.client];
+    return sessionService.clientViewData[props.message.client];
   });
 
   const cacheData = createMemo<FileMetaData | undefined>(
@@ -501,7 +501,7 @@ export const MessageContent: Component<MessageCardProps> = (
     "onLoad",
   ]);
   const targetClientInfo = createMemo(
-    () => sessionService.clientInfo[local.message.target],
+    () => sessionService.clientViewData[local.message.target],
   );
   const session = createMemo(
     () => sessionService.sessions[local.message.target],

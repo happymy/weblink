@@ -120,7 +120,7 @@ export const createForwardDialog = () => {
   };
   const [open, setOpen] = createSignal(false);
   const availableClients = createMemo(() =>
-    Object.values(sessionService.clientInfo).filter(
+    Object.values(sessionService.clientViewData).filter(
       (client) => client.onlineStatus === "online",
     ),
   );

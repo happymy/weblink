@@ -9,7 +9,6 @@ import {
   ChunkMetaData,
   DBNAME_PREFIX,
   FileMetaData,
-  getTotalChunkCount,
 } from ".";
 
 export interface ChunkCache {
@@ -518,7 +517,8 @@ export class IDBChunkCache implements ChunkCache {
     const blobParts: BlobPart[] = [];
     const request = store.openCursor();
 
-    const time = Date.now();
+    const logString = `merge file ${info.fileName} ${info.fileSize} bytes`;
+    console.time(logString);
     return await new Promise<File>((reslove, reject) => {
       request.onsuccess = () => {
         const cursor = request.result;
@@ -539,15 +539,13 @@ export class IDBChunkCache implements ChunkCache {
           reslove(file);
           this.dispatchEvent("complete", file);
           this.dispatchEvent("update", info);
-          console.log(
-            `merge file cost ${Date.now() - time}ms`,
-          );
         }
       };
 
       request.onerror = (err) => reject(err);
     }).finally(() => {
       this.isMerging = false;
+      console.timeEnd(logString);
     });
   }
 }
@@ -559,4 +557,11 @@ async function isComplete(info: FileMetaData) {
     done = !!info.file;
   }
   return done;
+}
+
+export function getTotalChunkCount(info: FileMetaData) {
+  if (!info.chunkSize) {
+    throw new Error("chunkSize is not found");
+  }
+  return Math.ceil(info.fileSize / info.chunkSize);
 }

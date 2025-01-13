@@ -7,10 +7,7 @@ import { UpdateClientOptions } from "./client/firebase-client-service";
 import { EventHandler } from "@/libs/utils/event-emitter";
 
 export type ClientServiceEventMap = {
-  "statuschange":
-    | "connected"
-    | "connecting"
-    | "disconnected";
+  statuschange: "connected" | "connecting" | "disconnected";
 };
 
 export interface ClientService {
@@ -44,18 +41,24 @@ export interface ClientService {
   createClient(): Promise<void>;
   updateClient(options: UpdateClientOptions): Promise<void>;
 
-  destroy(): void;
+  close(): void;
 }
 
 export type Unsubscribe = () => void;
 
 export type SignalingServiceEventMap = {
   signal: ClientSignal;
-  connect: void;
-  close: void;
+  statuschange: Exclude<SignalingServiceStatus, "init">;
 };
 
+export type SignalingServiceStatus =
+  | "init"
+  | "connected"
+  | "disconnected"
+  | "closed";
+
 export interface SignalingService {
+  get status(): SignalingServiceStatus;
   sendSignal: (signal: RawSignal) => Promise<void>;
   addEventListener<
     K extends keyof SignalingServiceEventMap,
@@ -76,7 +79,7 @@ export interface SignalingService {
   clientId: ClientID;
   targetClientId: ClientID;
 
-  destroy: () => void;
+  close(): void;
 }
 
 export interface RawSignal {

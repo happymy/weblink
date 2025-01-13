@@ -162,7 +162,7 @@ export default function Video() {
           </VideoDisplay>
           <For
             each={Object.values(
-              sessionService.clientInfo,
+              sessionService.clientViewData,
             ).filter(
               (client) => client.stream !== undefined,
             )}
@@ -476,7 +476,7 @@ const LocalToolbar = (props: {
         >
           {videoStop()
             ? t("common.action.continue")
-            : t("common.action.stop")}
+            : t("common.action.pause")}
         </FlexButton>
       </Show>
       <Show when={audioTracks().length > 0 || videoTrack()}>

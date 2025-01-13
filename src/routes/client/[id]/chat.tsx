@@ -60,7 +60,7 @@ export default function ClientPage(
       ) ?? null,
   );
   const clientInfo = createMemo<ClientInfo | undefined>(
-    () => sessionService.clientInfo[props.params.id],
+    () => sessionService.clientViewData[props.params.id],
   );
   createEffect(() => {
     if (messageStores.status() === "ready" && !client()) {

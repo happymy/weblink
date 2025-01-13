@@ -21,7 +21,7 @@ self.addEventListener("message", (event) => {
 });
 
 self.addEventListener("install", () => {
-  console.log("weblink install");
+  console.log("weblink installed");
 });
 
 self.addEventListener("fetch", (event) => {

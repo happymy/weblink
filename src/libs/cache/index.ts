@@ -29,9 +29,3 @@ export interface FileMetaData extends ChunkMetaData {
 
 export const DBNAME_PREFIX: string = "file-";
 
-export function getTotalChunkCount(info: FileMetaData) {
-  if (!info.chunkSize) {
-    throw new Error("chunkSize is not found");
-  }
-  return Math.ceil(info.fileSize / info.chunkSize);
-}

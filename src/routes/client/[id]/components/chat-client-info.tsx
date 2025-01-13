@@ -29,7 +29,7 @@ const clientInfoDialog = () => {
 
   const info = createMemo<ClientInfo | null>(() => {
     return target()
-      ? (sessionService.clientInfo[target()!] ?? null)
+      ? (sessionService.clientViewData[target()!] ?? null)
       : null;
   });
   const client = createMemo<Client | null>(() => {

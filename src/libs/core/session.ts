@@ -23,19 +23,19 @@ export type PeerSessionEventMap = {
   error: Error;
   messagechannelchange: "ready" | "closed";
   remotestreamchange: MediaStream | null;
-  statuschange: PeerSessionStatus;
+  statuschange: Exclude<PeerSessionStatus, "init">;
 };
 
 type PeerSessionStatus =
-  | "init"
   | "created"
   | "connecting"
   | "connected"
   | "reconnecting"
   | "disconnected"
-  | "closed";
+  | "closed"
+  | "init";
 
-const ConnectionTimeout = 15000;
+const ConnectionTimeout = 10000;
 
 export class PeerSession {
   private eventEmitter: MultiEventEmitter<PeerSessionEventMap> =
@@ -128,13 +128,15 @@ export class PeerSession {
   private setStatus(status: PeerSessionStatus) {
     if (this.status === status) return;
     this.status = status;
-    this.dispatchEvent("statuschange", status);
+    if (status !== "init") {
+      this.dispatchEvent("statuschange", status);
+    }
   }
 
   private initializeConnection() {
     if (this.status === "closed") {
       throw new Error(
-        `can not initialize connection, session ${this.clientId} is closed`,
+        `[PeerSession] can not initialize connection, session ${this.clientId} is closed`,
       );
     }
     if (this.peerConnection) {
@@ -142,20 +144,21 @@ export class PeerSession {
         this.peerConnection.connectionState === "connected"
       ) {
         throw new Error(
-          `can not initialize connection, session ${this.clientId} already connected`,
+          `[PeerSession] can not initialize connection, session ${this.clientId} already connected`,
         );
       }
       this.disconnect();
     }
 
     console.log(
-      `initialize connection, session ${this.clientId}`,
+      `[PeerSession] initialize connection, session ${this.clientId}`,
     );
     if (this.controller) {
       throw new Error(
-        `can not initialize connection, controller already exists`,
+        `[PeerSession] can not initialize connection, controller already exists`,
       );
     }
+
     this.controller = new AbortController();
     const pc = new RTCPeerConnection({
       iceServers: this.iceServers,
@@ -164,22 +167,6 @@ export class PeerSession {
       bundlePolicy: "max-bundle",
     });
     this.peerConnection = pc;
-
-    if (this.stream) {
-      const stream = this.stream;
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-    } else {
-      pc.addTransceiver("video", {
-        direction: "recvonly",
-      });
-      pc.addTransceiver("audio", {
-        direction: "recvonly",
-      });
-    }
-
-    this.setStatus("created");
 
     pc.addEventListener(
       "icecandidate",
@@ -202,6 +189,85 @@ export class PeerSession {
         signal: this.controller.signal,
       },
     );
+
+    pc.addEventListener(
+      "datachannel",
+      (ev) => {
+        this.channels.push(ev.channel);
+
+        ev.channel.addEventListener(
+          "close",
+          () => {
+            const index = this.channels.findIndex(
+              (c) => c.id === ev.channel.id,
+            );
+            if (index !== -1) {
+              this.channels.splice(index, 1);
+            }
+
+            if (ev.channel.protocol === "message") {
+              this.messageChannel = null;
+            }
+          },
+
+          { once: true },
+        );
+
+        if (ev.channel.protocol === "message") {
+          ev.channel.addEventListener(
+            "message",
+            (ev) => {
+              const [error, message] = catchErrorSync(
+                () => JSON.parse(ev.data) as SessionMessage,
+              );
+              if (error) {
+                console.error(error);
+                return;
+              }
+              this.dispatchEvent("message", message);
+            },
+            { signal: this.controller?.signal },
+          );
+
+          this.messageChannel = ev.channel;
+          this.dispatchEvent(
+            "messagechannelchange",
+            "ready",
+          );
+        }
+
+        this.dispatchEvent("channel", ev.channel);
+      },
+      {
+        signal: this.controller.signal,
+      },
+    );
+
+    pc.addEventListener(
+      "connectionstatechange",
+      () => {
+        switch (pc.connectionState) {
+          case "new":
+            break;
+          case "connecting":
+            this.setStatus("connecting");
+            break;
+          case "connected":
+            this.connectable = true;
+            this.setStatus("connected");
+            break;
+          case "closed":
+          case "disconnected":
+          case "failed":
+            this.handleDisconnection();
+            break;
+          default:
+            break;
+        }
+      },
+      { signal: this.controller.signal },
+    );
+
     pc.addEventListener(
       "track",
       (ev) => {
@@ -278,6 +344,48 @@ export class PeerSession {
       { signal: this.controller.signal },
     );
 
+    if (this.stream) {
+      const stream = this.stream;
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+    } else {
+      pc.addTransceiver("video", {
+        direction: "recvonly",
+      });
+      pc.addTransceiver("audio", {
+        direction: "recvonly",
+      });
+    }
+
+    this.setStatus("created");
+
+    let queue = Promise.resolve();
+    function enqueueTask(task: () => Promise<void>) {
+      queue = queue.then(() => task());
+    }
+
+    for (const signal of this.signalCache) {
+      enqueueTask(() => this.handleSignal(signal));
+    }
+    this.signalCache.length = 0;
+    return pc;
+  }
+
+  private setAfterConnectedListeners() {
+    const pc = this.peerConnection;
+    if (!pc) {
+      throw new Error(
+        `[PeerSession] peer connection is null, can not set listeners`,
+      );
+    }
+    const controller = this.controller;
+    if (!controller) {
+      throw new Error(
+        `[PeerSession] controller is null, can not set listeners`,
+      );
+    }
+
     pc.addEventListener(
       "iceconnectionstatechange",
       async () => {
@@ -294,60 +402,7 @@ export class PeerSession {
         }
       },
       {
-        signal: this.controller.signal,
-      },
-    );
-
-    pc.addEventListener(
-      "datachannel",
-      (ev) => {
-        this.channels.push(ev.channel);
-
-        ev.channel.addEventListener(
-          "close",
-          () => {
-            const index = this.channels.findIndex(
-              (c) => c.id === ev.channel.id,
-            );
-            if (index !== -1) {
-              this.channels.splice(index, 1);
-            }
-
-            if (ev.channel.protocol === "message") {
-              this.messageChannel = null;
-            }
-          },
-
-          { once: true },
-        );
-
-        if (ev.channel.protocol === "message") {
-          ev.channel.addEventListener(
-            "message",
-            (ev) => {
-              const [error, message] = catchErrorSync(
-                () => JSON.parse(ev.data) as SessionMessage,
-              );
-              if (error) {
-                console.error(error);
-                return;
-              }
-              this.dispatchEvent("message", message);
-            },
-            { signal: this.controller?.signal },
-          );
-
-          this.messageChannel = ev.channel;
-          this.dispatchEvent(
-            "messagechannelchange",
-            "ready",
-          );
-        }
-
-        this.dispatchEvent("channel", ev.channel);
-      },
-      {
-        signal: this.controller.signal,
+        signal: controller.signal,
       },
     );
 
@@ -355,11 +410,11 @@ export class PeerSession {
       "signalingstatechange",
       () => {
         console.log(
-          `signalingstatechange, signalingState: ${pc.signalingState}`,
+          `[PeerSession] signalingstatechange, signalingState: ${pc.signalingState}`,
         );
       },
       {
-        signal: this.controller.signal,
+        signal: controller.signal,
       },
     );
 
@@ -367,59 +422,37 @@ export class PeerSession {
       "negotiationneeded",
       async () => {
         console.log(
-          `client ${this.clientId} onNegotiationneeded`,
+          `[PeerSession] client ${this.clientId} onNegotiationneeded`,
         );
+
         await this.renegotiate();
       },
-      { signal: this.controller.signal },
+      { signal: controller.signal },
     );
-
-    pc.addEventListener(
-      "connectionstatechange",
-      () => {
-        switch (pc.connectionState) {
-          case "new":
-            break;
-          case "connecting":
-            this.setStatus("connecting");
-            break;
-          case "connected":
-            this.connectable = true;
-            this.setStatus("connected");
-            break;
-          case "closed":
-          case "disconnected":
-          case "failed":
-            this.setStatus("disconnected");
-            this.handleDisconnection();
-            break;
-          default:
-            break;
-        }
-      },
-      { signal: this.controller.signal },
-    );
-
-    let queue = Promise.resolve();
-    function enqueueTask(task: () => Promise<void>) {
-      queue = queue.then(() => task());
-    }
-
-    for (const signal of this.signalCache) {
-      enqueueTask(() => this.handleSignal(signal));
-    }
-    this.signalCache.length = 0;
-    return pc;
   }
 
   private async handleDisconnection() {
+    if (this.status === "closed") {
+      console.warn(
+        `[PeerSession] session ${this.clientId} is closed, skip handle disconnection`,
+      );
+      return;
+    }
+    this.disconnect();
     let reconnectAttempts = 0;
     const attemptReconnect = async () => {
+      if (this.sender.status === "closed") {
+        console.warn(
+          `[PeerSession] signaling service is closed, skip handle disconnection`,
+        );
+        this.close();
+        return;
+      }
       if (
         ["closed", "reconnecting"].includes(this.status)
       ) {
         console.warn(
-          `session ${this.clientId} is ${this.status}, skip handle connection error`,
+          `[PeerSession] session ${this.clientId} is ${this.status}, skip handle connection error`,
         );
         return;
       }
@@ -429,25 +462,25 @@ export class PeerSession {
         )
       ) {
         console.warn(
-          `connection error, session ${this.clientId} is already ${this.peerConnection?.connectionState}, skip handle connection error`,
+          `[PeerSession] connection error, session ${this.clientId} is already ${this.peerConnection?.connectionState}, skip handle connection error`,
         );
         return;
       }
       if (!this.connectable) {
         console.warn(
-          `connection error, session ${this.clientId} is not connectable, disconnect`,
+          `[PeerSession] connection error, session ${this.clientId} is not connectable, disconnect`,
         );
         return;
       }
       reconnectAttempts++;
       console.log(
-        `attempt reconnect, attempt ${reconnectAttempts}`,
+        `[PeerSession] attempt reconnect, attempt ${reconnectAttempts}`,
       );
 
       const [err] = await catchErrorAsync(this.reconnect());
       if (err) {
         console.error(
-          `reconnect attempt ${reconnectAttempts} failed, error: `,
+          `[PeerSession] reconnect attempt ${reconnectAttempts} failed, error: `,
           err,
         );
         if (reconnectAttempts < 10) {
@@ -458,9 +491,13 @@ export class PeerSession {
         } else {
           this.disconnect();
           console.error(
-            `reconnect failed, reach max reconnect attempts`,
+            `[PeerSession] reconnect failed, reach max reconnect attempts`,
           );
         }
+      } else {
+        console.log(
+          `[PeerSession] reconnect success, session ${this.clientId}`,
+        );
       }
     };
     attemptReconnect();
@@ -470,7 +507,7 @@ export class PeerSession {
     const pc = this.peerConnection;
     if (!pc) {
       console.log(
-        `peer connection is null, skip handle signal`,
+        `[PeerSession] peer connection is null, skip handle signal`,
       );
       return;
     }
@@ -481,7 +518,7 @@ export class PeerSession {
       this.ignoreOffer = !this.polite && offerCollision;
       if (this.ignoreOffer) {
         console.warn(
-          `Offer ignored due to collision, signalingState: ${pc.signalingState}`,
+          `[PeerSession] Offer ignored due to collision, signalingState: ${pc.signalingState}`,
         );
         return;
       }
@@ -496,7 +533,10 @@ export class PeerSession {
       );
 
       if (err) {
-        console.error(`setRemoteDescription error: `, err);
+        console.error(
+          `[PeerSession] setRemoteDescription error: `,
+          err,
+        );
         return;
       }
 
@@ -505,13 +545,16 @@ export class PeerSession {
       );
 
       if (err) {
-        console.error(`setLocalDescription error: `, err);
+        console.error(
+          `[PeerSession] setLocalDescription error: `,
+          err,
+        );
         return;
       }
 
       if (!pc.localDescription) {
         console.warn(
-          `localDescription is null, signalingState: ${pc.signalingState}`,
+          `[PeerSession] localDescription is null, signalingState: ${pc.signalingState}`,
         );
         return;
       }
@@ -526,13 +569,16 @@ export class PeerSession {
       );
 
       if (err) {
-        console.error(`sendSignal error: `, err);
+        console.error(
+          `[PeerSession] sendSignal error: `,
+          err,
+        );
         return;
       }
     } else if (signal.type === "answer") {
       if (pc.signalingState !== "have-local-offer") {
         console.warn(
-          `answer ignored due to signalingState is ${pc.signalingState}`,
+          `[PeerSession] answer ignored due to signalingState is ${pc.signalingState}`,
         );
         return;
       }
@@ -547,7 +593,10 @@ export class PeerSession {
       );
 
       if (err) {
-        console.error(`setRemoteDescription error: `, err);
+        console.error(
+          `[PeerSession] setRemoteDescription error: `,
+          err,
+        );
         return;
       }
     } else if (signal.type === "candidate") {
@@ -560,7 +609,10 @@ export class PeerSession {
 
       if (err) {
         if (!this.ignoreOffer) {
-          console.error(`addIceCandidate error: `, err);
+          console.error(
+            `[PeerSession] addIceCandidate error: `,
+            err,
+          );
         }
       }
     }
@@ -569,7 +621,7 @@ export class PeerSession {
   async listen() {
     if (this.status === "closed") {
       throw new Error(
-        `session ${this.clientId} is closed, can not listen`,
+        `[PeerSession] session ${this.clientId} is closed, can not listen`,
       );
     }
     const [err] = catchErrorSync(() =>
@@ -579,24 +631,47 @@ export class PeerSession {
       throw err;
     }
 
-    this.sender.addEventListener("signal", async (ev) => {
-      console.log(
-        `client received signal ${ev.detail.type}`,
-        ev.detail,
-      );
-      const pc = this.peerConnection;
-      if (!pc) {
-        console.log(
-          `peer connection is null, cache signal`,
-        );
-        this.signalCache.push(ev.detail);
-        if (ev.detail.type === "candidate") {
-          this.handleDisconnection();
+    const listenController = new AbortController();
+
+    this.sender.addEventListener(
+      "signal",
+      async (ev) => {
+        if (this.status === "closed") {
+          console.log(
+            `[PeerSession] session ${this.clientId} is closed, skip handle signal`,
+          );
+          listenController.abort();
+          return;
         }
-      } else {
-        await this.handleSignal(ev.detail);
-      }
-    });
+        console.log(
+          `[PeerSession] client received signal ${ev.detail.type}`,
+          ev.detail,
+        );
+        const pc = this.peerConnection;
+        if (!pc) {
+          console.log(
+            `[PeerSession] peer connection is null, cache signal`,
+          );
+          this.signalCache.push(ev.detail);
+          if (ev.detail.type === "candidate") {
+            this.handleDisconnection();
+          }
+        } else {
+          await this.handleSignal(ev.detail);
+        }
+      },
+      { signal: listenController.signal },
+    );
+
+    this.sender.addEventListener(
+      "statuschange",
+      (ev) => {
+        console.log(
+          `[PeerSession] signaling service status change: ${ev.detail}`,
+        );
+      },
+      { signal: listenController.signal },
+    );
   }
 
   private removeStream() {
@@ -656,7 +731,7 @@ export class PeerSession {
         .map((track) => {
           track.addEventListener("ended", () => {
             console.log(
-              `track ended, remove track from peer connection`,
+              `[PeerSession] track ended, remove track from peer connection`,
               track.id,
             );
             const index = senders.findIndex(
@@ -681,7 +756,7 @@ export class PeerSession {
   async createChannel(label: string, protocol: string) {
     if (!this.peerConnection) {
       throw new Error(
-        `failed to create channel, peer connection is null`,
+        `[PeerSession] failed to create channel, peer connection is null`,
       );
     }
 
@@ -692,7 +767,7 @@ export class PeerSession {
     );
     if (existChannel) {
       console.warn(
-        `channel ${label} with protocol ${protocol} already exists`,
+        `[PeerSession] channel ${label} with protocol ${protocol} already exists`,
       );
       return existChannel;
     }
@@ -782,12 +857,12 @@ export class PeerSession {
   sendMessage(message: SessionMessage) {
     if (this.status === "closed") {
       throw new Error(
-        `session ${this.clientId} is closed, can not send message`,
+        `[PeerSession] session ${this.clientId} is closed, can not send message`,
       );
     }
     if (!this.messageChannel) {
       console.error(
-        `failed to send message, message channel is null`,
+        `[PeerSession] failed to send message, message channel is null`,
       );
       return;
     }
@@ -798,19 +873,19 @@ export class PeerSession {
   async renegotiate() {
     if (this.status === "closed") {
       throw new Error(
-        `session ${this.clientId} is closed, can not renegotiate`,
+        `[PeerSession] session ${this.clientId} is closed, can not renegotiate`,
       );
     }
     if (!this.peerConnection) {
       console.warn(
-        `renegotiate failed, peer connection is not created`,
+        `[PeerSession] renegotiate failed, peer connection is not created`,
       );
       return;
     }
 
     if (this.peerConnection.signalingState !== "stable") {
       console.warn(
-        `renegotiate failed, signalingState is ${this.peerConnection.signalingState}`,
+        `[PeerSession] renegotiate failed, signalingState is ${this.peerConnection.signalingState}`,
       );
       return;
     }
@@ -820,13 +895,16 @@ export class PeerSession {
         handleOffer(this.peerConnection, this.sender),
       );
       if (err) {
-        console.error("Error during ICE restart:", err);
+        console.error(
+          `[PeerSession] Error during ICE restart:`,
+          err,
+        );
         return;
       }
       this.makingOffer = false;
     } else {
       console.warn(
-        `session ${this.clientId} already making offer`,
+        `[PeerSession] session ${this.clientId} already making offer`,
       );
     }
   }
@@ -834,148 +912,34 @@ export class PeerSession {
   async reconnect() {
     if (this.status === "closed") {
       throw new Error(
-        `session ${this.clientId} is closed, can not reconnect`,
+        `[PeerSession] session ${this.clientId} is closed, can not reconnect`,
       );
-    }
-    if (this.peerConnection === null) {
-      console.log(
-        `peer connection ${this.targetClientId} is null, new connection`,
-      );
-      this.disconnect();
-      let err: Error | undefined;
-      [err] = catchErrorSync(() =>
-        this.initializeConnection(),
-      );
-      if (err) throw err;
-      this.setStatus("reconnecting");
-      [err] = await catchErrorAsync(this.connect());
-      if (err) {
-        throw err;
-      }
-      return;
-    }
-    const pc = this.peerConnection;
-    if (
-      ["connecting", "connected"].includes(
-        pc.connectionState,
-      )
-    ) {
-      console.warn(
-        `session ${this.clientId} already connected, skip reconnect`,
-      );
-      return;
     }
 
+    console.log(
+      `[PeerSession] peer connection ${this.targetClientId} is null, new connection`,
+    );
+    this.disconnect();
+    let err: Error | undefined;
+    [err] = catchErrorSync(() =>
+      this.initializeConnection(),
+    );
+    if (err) throw err;
     this.setStatus("reconnecting");
-
-    let timer: number;
-
-    const connectAbortController = new AbortController();
-
-    return new Promise<void>(async (resolve, reject) => {
-      this.createChannel("message", "message").catch(
-        (err) => {
-          connectAbortController.abort();
-          reject(err);
-        },
-      );
-      timer = window.setTimeout(() => {
-        connectAbortController.abort();
-        this.disconnect();
-        reject(
-          new Error(
-            `connect timeout: after ${ConnectionTimeout}ms`,
-          ),
-        );
-      }, ConnectionTimeout);
-
-      this.controller?.signal.addEventListener(
-        "abort",
-        () => {
-          connectAbortController.abort();
-        },
-        { once: true },
-      );
-
-      connectAbortController.signal.addEventListener(
-        "abort",
-        () => {
-          window.clearTimeout(timer);
-        },
-        { once: true },
-      );
-
-      const onConnectionStateChange = () => {
-        switch (pc.connectionState) {
-          case "connected":
-            this.connectable = true;
-            connectAbortController.abort();
-            resolve();
-            break;
-          case "failed":
-          case "closed":
-          case "disconnected":
-            this.dispatchEvent(
-              "error",
-              Error("reconnect error"),
-            );
-            this.setStatus("disconnected");
-            connectAbortController.abort();
-            reject(
-              new Error(
-                `Connection failed with state: ${pc.connectionState}`,
-              ),
-            );
-            break;
-          default:
-            console.log(
-              `connectionstatechange state: ${pc.connectionState}`,
-            );
-            break;
-        }
-      };
-
-      pc.addEventListener(
-        "connectionstatechange",
-        onConnectionStateChange,
-        { signal: connectAbortController.signal },
-      );
-
-      pc.restartIce();
-
-      if (!this.makingOffer) {
-        this.makingOffer = true;
-        const [err] = await catchErrorAsync(
-          handleOffer(pc, this.sender),
-        );
-        this.makingOffer = false;
-        if (err) {
-          console.error("Error during ICE restart:", err);
-          connectAbortController.abort();
-          this.disconnect();
-          reject(err);
-        }
-      } else {
-        this.disconnect();
-        reject(
-          new Error(
-            `session ${this.clientId} already making offer`,
-          ),
-        );
-      }
-    });
+    [err] = await catchErrorAsync(this.connect());
+    if (err) throw err;
   }
 
   async connect() {
     if (this.status === "closed") {
       throw new Error(
-        `session ${this.clientId} is closed, can not connect`,
+        `[PeerSession] session ${this.clientId} is closed, can not connect`,
       );
     }
     const pc = this.peerConnection;
     if (!pc) {
       console.warn(
-        `connect failed, peer connection is null`,
+        `[PeerSession] connect failed, peer connection is null`,
       );
       return;
     }
@@ -986,7 +950,7 @@ export class PeerSession {
       )
     ) {
       console.warn(
-        `session ${this.clientId} already ${pc.connectionState}`,
+        `[PeerSession] session ${this.clientId} already ${pc.connectionState}`,
       );
       return;
     }
@@ -996,17 +960,14 @@ export class PeerSession {
     return new Promise<void>(async (resolve, reject) => {
       this.createChannel("message", "message").catch(
         (err) => {
-          connectAbortController.abort();
           reject(err);
         },
       );
 
       const timer = window.setTimeout(() => {
-        connectAbortController.abort();
-        this.disconnect();
         reject(
           new Error(
-            `connect timeout: after ${ConnectionTimeout}ms`,
+            `[PeerSession] connect timeout: after ${ConnectionTimeout}ms`,
           ),
         );
       }, ConnectionTimeout);
@@ -1014,7 +975,9 @@ export class PeerSession {
       this.controller?.signal.addEventListener(
         "abort",
         () => {
-          connectAbortController.abort();
+          reject(
+            new Error(`[PeerSession] connect aborted`),
+          );
         },
         { once: true },
       );
@@ -1027,6 +990,22 @@ export class PeerSession {
         { once: true },
       );
 
+      this.sender.addEventListener(
+        "statuschange",
+        (ev) => {
+          if (
+            ["closed", "disconnected"].includes(ev.detail)
+          ) {
+            reject(
+              new Error(
+                `[PeerSession] connection failed, signaling service is ${ev.detail}`,
+              ),
+            );
+          }
+        },
+        { signal: connectAbortController.signal },
+      );
+
       pc.addEventListener(
         "connectionstatechange",
         () => {
@@ -1035,18 +1014,15 @@ export class PeerSession {
               console.log(
                 `connection established, session ${this.clientId}, connectable: ${this.connectable}`,
               );
-              connectAbortController.abort();
               this.connectable = true;
               resolve();
               break;
             case "failed":
             case "closed":
             case "disconnected":
-              connectAbortController.abort();
-              this.disconnect();
               reject(
                 new Error(
-                  `Connection failed with state: ${pc.connectionState}`,
+                  `[PeerSession] Connection failed with state: ${pc.connectionState}`,
                 ),
               );
               break;
@@ -1062,27 +1038,35 @@ export class PeerSession {
           handleOffer(pc, this.sender),
         );
         if (err) {
-          connectAbortController.abort();
-          this.disconnect();
           reject(
             new Error(
-              `Failed to create and send offer: ${err.message}`,
+              `[PeerSession] Failed to create and send offer: ${err.message}`,
             ),
           );
         }
         this.makingOffer = false;
       } else {
-        this.disconnect();
         reject(
           new Error(
-            `session ${this.clientId} already making offer`,
+            `[PeerSession] session ${this.clientId} already making offer`,
           ),
         );
       }
-    });
+    })
+      .then(() => {
+        this.setAfterConnectedListeners();
+        this.setStatus("connected");
+      })
+      .catch((err) => {
+        this.disconnect();
+        throw err;
+      })
+      .finally(() => {
+        connectAbortController.abort();
+      });
   }
 
-  disconnect() {
+  private resetSession() {
     this.makingOffer = false;
     if (this.controller) {
       this.controller.abort();
@@ -1105,11 +1089,16 @@ export class PeerSession {
       });
       this.remoteStream = null;
     }
+    this.setStatus("init");
+  }
+
+  private disconnect() {
+    this.resetSession();
     this.setStatus("disconnected");
   }
 
   close() {
-    this.disconnect();
+    this.resetSession();
     this.setStatus("closed");
   }
 }

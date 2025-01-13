@@ -40,7 +40,6 @@ import { t } from "@/i18n";
 import {
   ChunkCacheInfo,
   ChunkMetaData,
-  getTotalChunkCount,
 } from "@/libs/cache";
 import { cn } from "@/libs/cn";
 import { messageStores } from "@/libs/core/messge";
@@ -91,6 +90,7 @@ import {
 import { catchErrorAsync } from "@/libs/catch";
 import { canShareFile } from "@/libs/utils/can-share";
 import { IconFile } from "@/components/icon-file";
+import { getTotalChunkCount } from "@/libs/cache/chunk-cache";
 
 type ChunkStatus =
   | "not_started"
@@ -514,7 +514,7 @@ const Sync = (props: RouteSectionProps) => {
   );
 
   const clientInfo = createMemo<ClientInfo | undefined>(
-    () => sessionService.clientInfo[props.params.id],
+    () => sessionService.clientViewData[props.params.id],
   );
 
   createEffect(() => {

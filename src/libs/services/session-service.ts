@@ -26,11 +26,11 @@ import { appOptions } from "@/options";
 
 class SessionService {
   readonly sessions: Record<ClientID, PeerSession>;
-  readonly clientInfo: Record<ClientID, ClientInfo>;
+  readonly clientViewData: Record<ClientID, ClientInfo>;
   private setSessions: SetStoreFunction<
     Record<ClientID, PeerSession>
   >;
-  private setClientInfo: SetStoreFunction<
+  private setClientViewData: SetStoreFunction<
     Record<ClientID, ClientInfo>
   >;
   private service?: ClientService;
@@ -58,8 +58,8 @@ class SessionService {
     const [clientInfo, setClientInfo] = createStore<
       Record<ClientID, ClientInfo>
     >({});
-    this.clientInfo = clientInfo;
-    this.setClientInfo = setClientInfo;
+    this.clientViewData = clientInfo;
+    this.setClientViewData = setClientInfo;
     const [clientServiceStatus, setClientServiceStatus] =
       createSignal<
         "connecting" | "connected" | "disconnected"
@@ -75,7 +75,7 @@ class SessionService {
   }
 
   setClipboard(message: SendClipboardMessage) {
-    this.setClientInfo(
+    this.setClientViewData(
       message.client,
       produce((state) => {
         state.clipboard = [
@@ -87,7 +87,7 @@ class SessionService {
   }
 
   setStorage(message: StorageMessage) {
-    this.setClientInfo(
+    this.setClientViewData(
       message.client,
       produce((state) => {
         state.storage = [...(message.data ?? [])];
@@ -100,7 +100,7 @@ class SessionService {
       console.warn(
         `client service already set, destory old service`,
       );
-      this.destoryService();
+      this.removeService();
     }
     this.service = cs;
 
@@ -109,12 +109,12 @@ class SessionService {
     });
   }
 
-  destoryService() {
-    this.service?.destroy();
+  removeService() {
+    this.service?.close();
     this.service = undefined;
   }
 
-  destorySession(target: ClientID) {
+  removeSession(target: ClientID) {
     const session = this.sessions[target];
     if (!session) {
       console.log(
@@ -124,13 +124,16 @@ class SessionService {
     }
     session.close();
     this.service?.removeSender(target);
-    this.setClientInfo(target, undefined!);
+    this.setClientViewData(target, undefined!);
     this.setSessions(target, undefined!);
   }
 
   requestStorage(client: ClientID) {
     const session = this.sessions[client];
     if (!session) {
+      console.warn(
+        `[SessionService] request storage, session ${client} not found`,
+      );
       return;
     }
     session.sendMessage({
@@ -171,7 +174,7 @@ class SessionService {
         appOptions.relayOnly,
     });
 
-    this.setClientInfo(client.clientId, {
+    this.setClientViewData(client.clientId, {
       ...client,
       onlineStatus: "offline",
       messageChannel: false,
@@ -188,41 +191,41 @@ class SessionService {
           case "created":
             break;
           case "connecting":
-            this.setClientInfo(
+            this.setClientViewData(
               client.clientId,
               "onlineStatus",
               "connecting",
             );
             break;
           case "connected":
-            this.setClientInfo(
+            this.setClientViewData(
               client.clientId,
               "onlineStatus",
               "online",
             );
             break;
           case "reconnecting":
-            this.setClientInfo(
+            this.setClientViewData(
               client.clientId,
               "onlineStatus",
               "reconnecting",
             );
             break;
           case "disconnected":
-            this.setClientInfo(
+            this.setClientViewData(
               client.clientId,
               "onlineStatus",
               "offline",
             );
             break;
           case "closed":
-            this.setClientInfo(
+            this.setClientViewData(
               client.clientId,
               "onlineStatus",
               "offline",
             );
             controller.abort();
-            this.destorySession(session.clientId);
+            this.removeSession(session.clientId);
             break;
         }
       },
@@ -243,7 +246,7 @@ class SessionService {
     session.addEventListener(
       "remotestreamchange",
       (ev) => {
-        this.setClientInfo(
+        this.setClientViewData(
           client.clientId,
           "stream",
           reconcile(ev.detail ?? undefined),
@@ -255,8 +258,8 @@ class SessionService {
     session.addEventListener(
       "messagechannelchange",
       (ev) => {
-        if (this.clientInfo[client.clientId]) {
-          this.setClientInfo(
+        if (this.clientViewData[client.clientId]) {
+          this.setClientViewData(
             client.clientId,
             "messageChannel",
             ev.detail === "ready",
@@ -273,9 +276,9 @@ class SessionService {
       session.close(),
     );
     this.setSessions(reconcile({}));
-    this.setClientInfo(reconcile({}));
+    this.setClientViewData(reconcile({}));
 
-    this.service?.destroy();
+    this.service?.close();
     this.service = undefined;
   }
 }

@@ -85,7 +85,7 @@ export const UserItem: Component<UserItemProps> = (
   ]);
 
   const clientInfo = createMemo<ClientInfo | undefined>(
-    () => sessionService.clientInfo[local.client.clientId],
+    () => sessionService.clientViewData[local.client.clientId],
   );
 
   const {

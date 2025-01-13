@@ -1,11 +1,9 @@
 import { waitBufferedAmountLowThreshold } from "./utils/channel";
+import { FileMetaData, ChunkMetaData } from "../cache";
 import {
-  FileMetaData,
-  ChunkMetaData,
+  ChunkCache,
   getTotalChunkCount,
-} from "../cache";
-
-import { ChunkCache } from "../cache/chunk-cache";
+} from "../cache/chunk-cache";
 import {
   EventHandler,
   MultiEventEmitter,
@@ -735,10 +733,8 @@ export class FileTransferer {
   }
 
   // handle receive message
-  handleReceiveMessage(data: any) {
+  handleReceiveMessage(data: string | ArrayBuffer | Blob) {
     try {
-      // this.setStatus(TransferStatus.Process);
-
       if (this.mode === TransferMode.Receive) {
         if (typeof data === "string") {
           console.log(`receiver get message`, data);

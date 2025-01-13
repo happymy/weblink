@@ -27,7 +27,7 @@ const ShareClientItem = (props: { client: ClientInfo }) => {
 
 const Share = (props: RouteSectionProps) => {
   const availableClients = createMemo(() =>
-    Object.values(sessionService.clientInfo).filter(
+    Object.values(sessionService.clientViewData).filter(
       (client) => client.onlineStatus === "online",
     ),
   );

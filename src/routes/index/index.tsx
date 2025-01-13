@@ -61,7 +61,7 @@ export default function Home(props: RouteSectionProps) {
     const clientId = appOptions.redirectToClient;
     if (!clientId) return;
 
-    const clientInfo = sessionService.clientInfo[clientId];
+    const clientInfo = sessionService.clientViewData[clientId];
     if (clientInfo) {
       navigate(`/client/${clientId}/chat`, {
         replace: true,
@@ -82,7 +82,7 @@ export default function Home(props: RouteSectionProps) {
         return {
           client,
           message: getLastMessage(client.clientId),
-          clientInfo: sessionService.clientInfo[
+          clientInfo: sessionService.clientViewData[
             client.clientId
           ] as ClientInfo | undefined,
         };

@@ -110,23 +110,19 @@ export class WebSocketClientService
 
   private async initialize(resume?: boolean) {
     if (this.socket) {
-      if (this.socket.readyState === WebSocket.OPEN) {
-        console.warn(
-          `WebSocket already initialized, return existing socket`,
-        );
-        return this.socket;
-      } else if (
+      if (
+        this.socket.readyState === WebSocket.OPEN ||
         this.socket.readyState === WebSocket.CONNECTING
       ) {
         console.warn(
-          `WebSocket is connecting, wait for connection`,
+          `[WebSocketClientService] socket already initialized, return existing socket`,
         );
         return this.socket;
       } else {
         console.warn(
-          `WebSocket is not open, destroy existing socket`,
+          `[WebSocketClientService] close existing socket`,
         );
-        this.destroy();
+        this.disconnect();
       }
     }
 
@@ -160,24 +156,14 @@ export class WebSocketClientService
       window.addEventListener(
         "beforeunload",
         () => {
-          this.destroy();
+          this.close();
         },
         { signal: controller.signal },
       );
       window.addEventListener(
         "unload",
         () => {
-          this.destroy();
-        },
-        { signal: controller.signal },
-      );
-      document.addEventListener(
-        "visibilitychange",
-        () => {
-          if (this.socket?.readyState === WebSocket.OPEN)
-            return;
-          this.setStatus("disconnected");
-          this.reconnect();
+          this.close();
         },
         { signal: controller.signal },
       );
@@ -190,7 +176,7 @@ export class WebSocketClientService
           );
           if (error) {
             console.error(
-              `WebSocket message error: ${error.message}`,
+              `[WebSocketClientService] parse message error: ${error.message}`,
             );
             return;
           }
@@ -220,7 +206,10 @@ export class WebSocketClientService
       socket.addEventListener(
         "error",
         (ev) => {
-          console.warn(`WebSocket error:`, ev);
+          console.warn(
+            `[WebSocketClientService] socket error:`,
+            ev,
+          );
         },
         { signal: controller.signal },
       );
@@ -228,7 +217,6 @@ export class WebSocketClientService
       socket.addEventListener(
         "close",
         () => {
-          this.setStatus("disconnected");
           this.reconnect();
         },
         {
@@ -244,9 +232,11 @@ export class WebSocketClientService
     return new Promise<WebSocket>((resolve, reject) => {
       this.setStatus("connecting");
       let timer = window.setTimeout(() => {
-        reject(new Error("WebSocket connection timeout"));
-        this.setStatus("disconnected");
-        this.destroy();
+        reject(
+          new Error(
+            "[WebSocketClientService] connection timeout",
+          ),
+        );
       }, 10000);
 
       connectController.signal.addEventListener(
@@ -261,12 +251,9 @@ export class WebSocketClientService
         (ev) => {
           reject(
             new Error(
-              `WebSocket error ${ev.code} ${ev.reason}`,
+              `[WebSocketClientService] socket error ${ev.code} ${ev.reason}`,
             ),
           );
-          connectController.abort();
-          this.setStatus("disconnected");
-          this.destroy();
         },
         { once: true, signal: connectController.signal },
       );
@@ -277,17 +264,12 @@ export class WebSocketClientService
             () => JSON.parse(ev.data) as RawSignal,
           );
           if (error) {
-            console.error(
-              `WebSocket message error: ${error.message}`,
-            );
-            this.destroy();
             return reject(error);
           }
           if (message.type === "connected") {
             const passwordHash = message.data;
             if (passwordHash) {
               if (!this.password) {
-                this.destroy();
                 return reject(
                   new Error("password required"),
                 );
@@ -299,15 +281,16 @@ export class WebSocketClientService
                   passwordHash,
                 );
               if (!passwordMatch) {
-                this.destroy();
                 return reject(
-                  new Error("incorrect password"),
+                  new Error(
+                    "[WebSocketClientService] incorrect password",
+                  ),
                 );
               }
             } else {
               this.password = null;
-              toast.error(
-                "the room is not password protected",
+              toast.warning(
+                "[WebSocketClientService] the room is not password protected",
               );
             }
             socket.send(
@@ -316,17 +299,26 @@ export class WebSocketClientService
                 data: { ...this.client, resume },
               }),
             );
-            this.setStatus("connected");
             resolve(socket);
           } else if (message.type === "error") {
-            this.destroy();
             reject(new Error(message.data));
           }
-          connectController.abort();
         },
         { once: true, signal: connectController.signal },
       );
-    }).then((socket) => setupListeners(socket));
+    })
+      .then((socket) => {
+        this.setStatus("connected");
+        return setupListeners(socket);
+      })
+      .catch((err) => {
+        this.setStatus("disconnected");
+        this.disconnect();
+        throw err;
+      })
+      .finally(() => {
+        connectController.abort();
+      });
   }
 
   private async reconnect() {
@@ -346,10 +338,11 @@ export class WebSocketClientService
           this.reconnectInterval,
         );
       } else {
-        console.log(
-          `Reach max reconnect attempts, send leave message`,
+        console.error(
+          `[WebSocketClientService] reach max reconnect attempts, send close message`,
         );
-        this.destroy();
+        toast.error(`socket reach max reconnect attempts`);
+        this.close();
       }
       return;
     }
@@ -359,7 +352,9 @@ export class WebSocketClientService
     });
 
     this.reconnectAttempts = 0;
-    console.log(`WebSocket reconnect success`);
+    console.log(
+      `[WebSocketClientService] socket reconnect success`,
+    );
   }
 
   createSender(
@@ -369,13 +364,15 @@ export class WebSocketClientService
       this.signalingServices.get(targetClientId);
     if (service) {
       console.warn(
-        `sender to remote client: ${targetClientId} already exists`,
+        `[WebSocketClientService] sender to remote client: ${targetClientId} already exists`,
       );
       return null;
     }
 
     if (!this.socket) {
-      throw Error("WebSocket not initialized");
+      throw Error(
+        "[WebSocketClientService] socket not initialized",
+      );
     }
     service = new WebSocketSignalingService(
       this.socket,
@@ -390,7 +387,7 @@ export class WebSocketClientService
     const service =
       this.signalingServices.get(targetClientId);
     if (service) {
-      service.destroy();
+      service.close();
       this.signalingServices.delete(targetClientId);
     }
   }
@@ -408,11 +405,8 @@ export class WebSocketClientService
   async createClient() {
     await this.initialize();
   }
-  destroy() {
-    this.signalingServices.forEach((service) =>
-      service.destroy(),
-    );
-    this.eventListeners.clear();
+
+  private disconnect() {
     if (this.socket) {
       if (this.socket.readyState === WebSocket.OPEN) {
         this.socket.send(
@@ -430,6 +424,16 @@ export class WebSocketClientService
     }
     this.setStatus("disconnected");
   }
+
+  close() {
+    this.disconnect();
+    this.signalingServices.forEach((service) =>
+      service.close(),
+    );
+    this.signalingServices.clear();
+    this.eventListeners.clear();
+  }
+
   private emit(event: string, data: any) {
     const listeners = this.eventListeners.get(event) || [];
     listeners.forEach((callback) => callback(data));

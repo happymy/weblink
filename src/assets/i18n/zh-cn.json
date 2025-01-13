@@ -362,6 +362,7 @@
       "exit_picture_in_picture": "退出画中画",
       "switch_picture_in_picture": "切换画中画",
       "stop": "停止",
+      "pause": "暂停",
       "continue": "继续"
     },
     "clipboard_history": {

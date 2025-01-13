@@ -59,10 +59,14 @@ Modify the `docker-compose.yaml` file to set the correct environment variables. 
 docker-compose up -d
 ```
 
-To enable SSL you need to provide the SSL certificate `cert.pem` and key `key.pem` files in the `docker/ssl` directory. And run the following command:
+To enable SSL you need to provide the SSL certificate `server.crt` and key `server.pem` files in the `docker/ssl` directory. And run the following command:
 
 ```bash
-ENABLE_SSL=true docker-compose up -d
+ENABLE_SSL=true && docker compose up -d
+```
+
+```pwsh
+$env:ENABLE_SSL='true' && docker compose up -d
 ```
 
 Alternatively, you can also use Dockerfile to deploy this project to Docker.
