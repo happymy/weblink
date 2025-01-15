@@ -471,6 +471,8 @@ export const WebRTCProvider: Component<
         return;
       }
 
+      session.setStream(props.localStream);
+
       session.addEventListener("message", async (ev) => {
         const message = ev.detail;
         handleReceiveMessage(session, message);
@@ -499,18 +501,6 @@ export const WebRTCProvider: Component<
           transferManager.addChannel(fileId, channel);
         }
       });
-
-      session.addEventListener("statuschange", (ev) => {
-        switch (ev.detail) {
-          case "created":
-            handleCreated();
-            break;
-        }
-      });
-
-      const handleCreated = () => {
-        session.setStream(props.localStream);
-      };
 
       await session.listen();
       messageStores.setClient(targetClient);

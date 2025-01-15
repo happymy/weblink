@@ -58,7 +58,7 @@ pnpm build
 修改 `docker-compose.yaml` 文件以设置正确的环境变量，然后运行以下命令：
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 启用 SSL 时，需要提供 SSL 证书 `server.crt` 和密钥 `server.pem` 文件在 `docker/ssl` 目录下，然后运行以下命令：

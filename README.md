@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Weblink is a pure web-based file transfer and text/voice/video chat application built on WebRTC. It requires no downloads and works directly in your browser. Utilizing a serverless P2P architecture, it supports multiple backends including Firebase and WebSocket for efficient peer-to-peer connections. Additionally, Weblink ensures the privacy and security of signaling messages through end-to-end encryption.
+Weblink is a pure web-based **file transfer** and **text/voice/video chat** application built on WebRTC. It requires no downloads and works directly in your browser. Utilizing a serverless P2P architecture, it supports multiple backends including Firebase and WebSocket for efficient peer-to-peer connections. Additionally, Weblink ensures the privacy and security of signaling messages through end-to-end encryption.
 
 The project is deployed on Cloudflare Pages and using Firebase as backend can be accessed at [https://v.webl.ink](https://v.webl.ink).
 
@@ -56,7 +56,7 @@ You can deploy this project to Docker using `docker-compose.yaml`, and it will a
 Modify the `docker-compose.yaml` file to set the correct environment variables. Then run the following command:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 To enable SSL you need to provide the SSL certificate `server.crt` and key `server.pem` files in the `docker/ssl` directory. And run the following command:

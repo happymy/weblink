@@ -363,7 +363,9 @@
       "switch_picture_in_picture": "切换画中画",
       "stop": "停止",
       "pause": "暂停",
-      "continue": "继续"
+      "continue": "继续",
+      "global_mute": "全局静音",
+      "global_unmute": "全局恢复"
     },
     "clipboard_history": {
       "title": "剪贴板历史"

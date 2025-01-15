@@ -363,7 +363,9 @@
       "switch_picture_in_picture": "切換子母畫面",
       "stop": "停止",
       "pause": "暫停",
-      "continue": "繼續"
+      "continue": "繼續",
+      "global_mute": "全局靜音",
+      "global_unmute": "全局恢復"
     },
     "clipboard_history": {
       "title": "剪貼簿歷史"

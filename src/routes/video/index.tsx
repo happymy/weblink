@@ -119,8 +119,8 @@ export default function Video() {
               </TooltipTrigger>
               <TooltipContent>
                 {playState()
-                  ? t("common.action.mute")
-                  : t("common.action.unmute")}
+                  ? t("common.action.global_mute")
+                  : t("common.action.global_unmute")}
               </TooltipContent>
             </Tooltip>
           </Show>

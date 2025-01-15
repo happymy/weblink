@@ -52,7 +52,7 @@ export class PeerSession {
   private relayOnly: boolean;
   private signalCache: Array<ClientSignal> = [];
   readonly polite: boolean;
-  private stream: MediaStream | null = null;
+  private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private status: PeerSessionStatus = "init";
   constructor(
@@ -159,7 +159,8 @@ export class PeerSession {
       );
     }
 
-    this.controller = new AbortController();
+    const controller = new AbortController();
+    this.controller = controller;
     const pc = new RTCPeerConnection({
       iceServers: this.iceServers,
       iceTransportPolicy: this.relayOnly ? "relay" : "all",
@@ -186,7 +187,7 @@ export class PeerSession {
         }
       },
       {
-        signal: this.controller.signal,
+        signal: controller.signal,
       },
     );
 
@@ -239,7 +240,7 @@ export class PeerSession {
         this.dispatchEvent("channel", ev.channel);
       },
       {
-        signal: this.controller.signal,
+        signal: controller.signal,
       },
     );
 
@@ -265,18 +266,23 @@ export class PeerSession {
             break;
         }
       },
-      { signal: this.controller.signal },
+      { signal: controller.signal },
     );
 
     pc.addEventListener(
       "track",
       (ev) => {
-        console.log(
-          `client ${this.targetClientId} add track ${ev.track.id} stream ${ev.streams[0]?.id}`,
-        );
-
         const stream = ev.streams.at(0);
-        if (!stream) return;
+        if (!stream) {
+          console.warn(
+            `[PeerSession] client ${this.targetClientId} add track ${ev.track.id} stream is null`,
+          );
+          return;
+        }
+
+        console.log(
+          `[PeerSession] client ${this.targetClientId} add track ${ev.track.id} stream ${stream.id}`,
+        );
 
         const receiver = ev.receiver;
 
@@ -301,6 +307,7 @@ export class PeerSession {
         );
 
         if (this.remoteStream) {
+          // if the stream is the same, add the track to the remote stream
           if (stream.id === this.remoteStream.id) {
             this.remoteStream.addTrack(track);
             this.dispatchEvent(
@@ -309,9 +316,8 @@ export class PeerSession {
             );
             return;
           }
-
+          // if the stream is different, remove the old stream
           const remoteStream = this.remoteStream;
-
           remoteStream.getTracks().forEach((t) => {
             remoteStream.removeTrack(t);
             t.stop();
@@ -319,13 +325,11 @@ export class PeerSession {
 
           this.remoteStream = null;
         }
-        this.remoteStream = stream;
-
         stream.addEventListener(
           "removetrack",
           (ev) => {
             console.log(
-              `client ${this.targetClientId} removetrack`,
+              `[PeerSession] client ${this.targetClientId} removetrack`,
               ev.track.id,
             );
             if (stream.getTracks().length === 0) {
@@ -336,16 +340,18 @@ export class PeerSession {
               this.remoteStream,
             );
           },
-          { signal: this.controller?.signal },
+          { signal: controller.signal },
         );
 
+        // set the new stream
+        this.remoteStream = stream;
         this.dispatchEvent("remotestreamchange", stream);
       },
-      { signal: this.controller.signal },
+      { signal: controller.signal },
     );
 
-    if (this.stream) {
-      const stream = this.stream;
+    if (this.localStream) {
+      const stream = this.localStream;
       stream.getTracks().forEach((track) => {
         pc.addTrack(track, stream);
       });
@@ -359,20 +365,22 @@ export class PeerSession {
     }
 
     this.setStatus("created");
+    this.popSignalCache();
+    return pc;
+  }
 
+  private popSignalCache() {
     let queue = Promise.resolve();
     function enqueueTask(task: () => Promise<void>) {
       queue = queue.then(() => task());
     }
-
     for (const signal of this.signalCache) {
       enqueueTask(() => this.handleSignal(signal));
     }
     this.signalCache.length = 0;
-    return pc;
   }
 
-  private setAfterConnectedListeners() {
+  private setupAfterConnectedListeners() {
     const pc = this.peerConnection;
     if (!pc) {
       throw new Error(
@@ -675,33 +683,53 @@ export class PeerSession {
   }
 
   private removeStream() {
-    if (this.stream) {
-      this.stream.getTracks().forEach((track) => {
-        this.stream?.removeTrack(track);
+    console.log(
+      `[PeerSession] client ${this.targetClientId} removeStream`,
+    );
+    if (this.localStream) {
+      this.localStream.getTracks().forEach((track) => {
+        this.localStream?.removeTrack(track);
         track.stop();
       });
-      this.stream = null;
+      this.localStream = null;
     }
-    this.peerConnection?.getSenders().forEach((sender) => {
+    const pc = this.peerConnection;
+    if (!pc) {
+      console.log(
+        `[PeerSession] client ${this.targetClientId} peer connection is null, skip remove stream`,
+      );
+      return;
+    }
+    pc.getSenders().forEach((sender) => {
       if (sender.track) {
-        this.peerConnection?.removeTrack(sender);
+        pc.removeTrack(sender);
       }
     });
+    this.renegotiate();
   }
 
   setStream(stream: MediaStream | null) {
+    console.log(
+      `[PeerSession] client ${this.targetClientId} setStream`,
+      stream,
+    );
     if (!stream) {
       this.removeStream();
       return;
     }
 
-    if (this.stream) {
-      if (this.stream.id === stream.id) return;
+    if (this.localStream) {
+      if (this.localStream.id === stream.id) {
+        console.log(
+          `[PeerSession] client ${this.targetClientId} stream is same, skip setStream`,
+        );
+        return;
+      }
 
       this.removeStream();
     }
 
-    this.stream = stream;
+    this.localStream = stream;
 
     let senders: RTCRtpSender[] = [];
 
@@ -719,38 +747,44 @@ export class PeerSession {
       const index = senders.findIndex(
         (sender) => sender.track?.id === ev.track.id,
       );
-      if (index !== -1) {
-        this.peerConnection?.removeTrack(senders[index]);
-        senders.splice(index, 1);
-      }
+      if (index === -1) return;
+      senders.splice(index, 1);
+      if (!this.peerConnection) return;
+      this.peerConnection.removeTrack(senders[index]);
     });
 
+    const pc = this.peerConnection;
+    if (!pc) {
+      console.log(
+        `[PeerSession] client ${this.targetClientId} peer connection is null, skip add track`,
+      );
+      return;
+    }
+
     senders.push(
-      ...stream
-        .getTracks()
-        .map((track) => {
-          track.addEventListener("ended", () => {
-            console.log(
-              `[PeerSession] track ended, remove track from peer connection`,
-              track.id,
-            );
-            const index = senders.findIndex(
-              (sender) => sender.track?.id === track.id,
-            );
-            if (index !== -1) {
-              this.peerConnection?.removeTrack(
-                senders[index],
-              );
-              senders.splice(index, 1);
-            }
-          });
-          return this.peerConnection?.addTrack(
-            track,
-            stream,
+      ...stream.getTracks().map((track) => {
+        track.addEventListener("ended", () => {
+          console.log(
+            `[PeerSession] track ended, remove track from peer connection`,
+            track.id,
           );
-        })
-        .filter((sender) => sender !== undefined),
+          const index = senders.findIndex(
+            (sender) => sender.track?.id === track.id,
+          );
+          if (index !== -1) {
+            pc.removeTrack(senders[index]);
+            senders.splice(index, 1);
+          }
+        });
+        console.log(
+          `[PeerSession] client ${this.targetClientId} add track`,
+          track.id,
+        );
+        return pc.addTrack(track, stream);
+      }),
     );
+
+    this.renegotiate();
   }
 
   async createChannel(label: string, protocol: string) {
@@ -1054,7 +1088,7 @@ export class PeerSession {
       }
     })
       .then(() => {
-        this.setAfterConnectedListeners();
+        this.setupAfterConnectedListeners();
         this.setStatus("connected");
       })
       .catch((err) => {
@@ -1079,15 +1113,15 @@ export class PeerSession {
       this.messageChannel = null;
       this.dispatchEvent("messagechannelchange", "closed");
     }
-    if (this.peerConnection) {
-      this.peerConnection.close();
-      this.peerConnection = null;
-    }
     if (this.remoteStream) {
       this.remoteStream.getTracks().forEach((track) => {
         track.stop();
       });
       this.remoteStream = null;
+    }
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
     }
     this.setStatus("init");
   }

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.5] - 2025-01-14
+
+### Bug Fixes
+
+- Fix the bug that the remote stream cannot be removed correctly 修复了远程流无法正确更新的问题
+
 ## [0.10.4] - 2025-01-05
 
 ### Improvements

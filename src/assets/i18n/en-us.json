@@ -364,7 +364,9 @@
       "switch_picture_in_picture": "Switch PIP Mode",
       "stop": "Stop",
       "pause": "Pause",
-      "continue": "Continue"
+      "continue": "Continue",
+      "global_mute": "Global Mute",
+      "global_unmute": "Global Unmute"
     },
     "notification": {
       "copy_success": "Copy success",
