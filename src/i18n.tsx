@@ -3,12 +3,7 @@ import {
   resolveTemplate,
   translator,
 } from "@solid-primitives/i18n";
-import {
-  createEffect,
-  createMemo,
-  createResource,
-  onMount,
-} from "solid-js";
+import { createMemo, createResource } from "solid-js";
 import {
   Select,
   SelectContent,
@@ -20,7 +15,6 @@ import {
   appOptions,
   Locale,
   localeOptionsMap,
-  localFromLanguage,
   setAppOptions,
 } from "./options";
 

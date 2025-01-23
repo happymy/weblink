@@ -217,7 +217,10 @@
       "browser_version_too_low": "Your browser version is too low",
       "browser_does_not_support_webrtc": "Your browser does not support WebRTC"
     },
-    "description": "Please use a modern browser like Chrome, Firefox, Safari, Edge, or Opera. Or turn on the experimental WebRTC features in your browser"
+    "description": "Please use a modern browser like Chrome, Firefox, Safari, Edge, or Opera. Or turn on the experimental WebRTC features in your browser",
+    "version_support_details": "Version Support Details",
+    "browser": "Browser",
+    "version": "Version"
   },
   "common": {
     "theme_toggle": {

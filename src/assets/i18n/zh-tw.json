@@ -216,7 +216,10 @@
       "browser_version_too_low": "您的瀏覽器版本過低",
       "browser_does_not_support_webrtc": "您的瀏覽器不支援 WebRTC"
     },
-    "description": "請使用現代瀏覽器，如 Chrome、Firefox、Safari、Edge 或 Opera。或者在您的瀏覽器中啟用實驗性的 WebRTC 功能"
+    "description": "請使用現代瀏覽器，如 Chrome、Firefox、Safari、Edge 或 Opera。或者在您的瀏覽器中啟用實驗性的 WebRTC 功能",
+    "version_support_details": "版本支持詳情",
+    "browser": "瀏覽器",
+    "version": "版本"
   },
   "common": {
     "scan_qrcode_dialog": {

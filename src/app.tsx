@@ -6,6 +6,7 @@ import {
   createEffect,
   createSignal,
   ErrorBoundary,
+  JSX,
   onCleanup,
   onMount,
   ParentProps,
@@ -78,6 +79,13 @@ import { sleep } from "./libs/utils/sleep";
 import { Label } from "./components/ui/label";
 import { Textarea } from "./components/ui/textarea";
 import { AudioPlayerProvider } from "./components/audio-player";
+import { ThemeToggle } from "./components/theme-toggle";
+import { createDialog } from "./components/dialogs/dialog";
+import {
+  checkBrowserSupport,
+  isWebRTCAvailable,
+  MIN_VERSIONS,
+} from "./libs/utils/browser-compatibility";
 
 const createWakeLock = () => {
   const [wakeLock, setWakeLock] =
@@ -522,6 +530,32 @@ export default function App(props: RouteSectionProps) {
   const storageManager =
     createLocalStorageManager("ui-theme");
 
+  if (window.location.pathname === "/close-window") {
+    try {
+      window.close();
+    } catch (e) {
+      console.warn(e);
+    }
+    window.location.replace("about:blank");
+    return <></>;
+  }
+  let reasons = [];
+
+  if (!checkBrowserSupport()) {
+    reasons.push(() =>
+      t(
+        "browser_unsupported.reasons.browser_version_too_low",
+      ),
+    );
+  }
+  if (!isWebRTCAvailable()) {
+    reasons.push(() =>
+      t(
+        "browser_unsupported.reasons.browser_does_not_support_webrtc",
+      ),
+    );
+  }
+
   return (
     <>
       <MetaProvider>
@@ -532,14 +566,16 @@ export default function App(props: RouteSectionProps) {
             --background-image-opacity: ${appOptions.backgroundImageOpacity};
           }`}
         </Style>
+        <Toaster />
         <ColorModeScript
           storageType={storageManager.type}
         />
-        <Toaster />
         <ColorModeProvider storageManager={storageManager}>
           <ChatProvider>
             <AudioPlayerProvider>
-              <InnerApp>{props.children}</InnerApp>
+              <UnsupportView reasons={reasons}>
+                <InnerApp>{props.children}</InnerApp>
+              </UnsupportView>
             </AudioPlayerProvider>
           </ChatProvider>
         </ColorModeProvider>
@@ -547,3 +583,88 @@ export default function App(props: RouteSectionProps) {
     </>
   );
 }
+
+const UnsupportView = (props: {
+  reasons: (() => string)[];
+  children: JSX.Element;
+}) => {
+  const {
+    Component: VersionSupportDetailsDialog,
+    open: openVersionSupportDetailsDialog,
+  } = createDialog({
+    title: () =>
+      t("browser_unsupported.version_support_details"),
+    content: () => (
+      <table class="table">
+        <thead>
+          <tr>
+            <th>{t("browser_unsupported.browser")}</th>
+            <th>{t("browser_unsupported.version")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(MIN_VERSIONS).map(
+            ([browser, version]) => (
+              <tr>
+                <td>{browser}</td>
+                <td>{version}</td>
+              </tr>
+            ),
+          )}
+        </tbody>
+      </table>
+    ),
+  });
+
+  if (props.reasons.length === 0) {
+    return props.children;
+  }
+
+  return (
+    <>
+      <VersionSupportDetailsDialog />
+      <div class="flex h-screen flex-col bg-background/80 p-2 backdrop-blur">
+        <div class="flex items-center justify-between">
+          <h2 class="p-2 font-mono text-xl font-bold">
+            Weblink
+          </h2>
+          <ThemeToggle />
+        </div>
+
+        <div
+          class="flex h-screen flex-1 flex-col items-center justify-center
+            gap-4 text-center"
+        >
+          <h1 class="text-4xl font-bold">
+            {t("browser_unsupported.title")}
+          </h1>
+          <ul>
+            {props.reasons.map((reason) => (
+              <li>{reason()}</li>
+            ))}
+          </ul>
+          <p class="text-sm text-muted-foreground">
+            {t("browser_unsupported.description")}
+          </p>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              openVersionSupportDetailsDialog()
+            }
+          >
+            {t(
+              "browser_unsupported.version_support_details",
+            )}
+          </Button>
+        </div>
+        <div class="flex flex-col gap-2">
+          <p class="self-end text-xs text-muted-foreground">
+            {navigator.userAgent}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+};

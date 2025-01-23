@@ -1,175 +1,153 @@
+// Define the configuration object for browser detection rules
+const BROWSER_RULES = [
+  // iOS third-party browser
+  {
+    regex: /CriOS\/([\d.]+)/,
+    engine: "Chrome iOS",
+    versionIndex: 1,
+    os: "iOS",
+  },
+  {
+    regex: /FxiOS\/([\d.]+)/,
+    engine: "Firefox iOS",
+    versionIndex: 1,
+    os: "iOS",
+  },
+  {
+    regex: /EdgiOS\/([\d.]+)/,
+    engine: "Edge iOS",
+    versionIndex: 1,
+    os: "iOS",
+  },
+  {
+    regex: /OPiOS\/([\d.]+)/,
+    engine: "Opera iOS",
+    versionIndex: 1,
+    os: "iOS",
+  },
+
+  // Desktop & Android
+  {
+    regex: /Chrome\/([\d.]+)/,
+    engine: "Chrome",
+    versionIndex: 1,
+    os: /Windows NT|Linux|Mac OS X/,
+  },
+  {
+    regex: /Firefox\/([\d.]+)/,
+    engine: "Firefox",
+    versionIndex: 1,
+  },
+  {
+    regex: /Edg\/([\d.]+)/,
+    engine: "Edge",
+    versionIndex: 1,
+  },
+  {
+    regex: /OPR\/([\d.]+)/,
+    engine: "Opera",
+    versionIndex: 1,
+  },
+
+  // Safari
+  {
+    regex: /Version\/([\d.]+).+Safari/,
+    engine: "Safari",
+    versionIndex: 1,
+    os: (ua: string) =>
+      /iPad|iPhone|iPod/.test(ua) ? "iOS" : "macOS",
+  },
+];
+
+const getVersion = (
+  ua: string,
+  regex: RegExp,
+  index: number,
+) => {
+  const match = ua.match(regex);
+  return match?.[index] || "unknown";
+};
+
 function getBrowserEngineInfo() {
-  const userAgent = navigator.userAgent;
+  const ua = navigator.userAgent;
   let engineInfo = {
-    engine: "",
-    version: "",
-    os: "",
+    engine: "unknown",
+    version: "unknown",
+    os: "unknown",
     osVersion: "",
   };
 
-  const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+  for (const rule of BROWSER_RULES) {
+    if (rule.regex.test(ua)) {
+      const os =
+        typeof rule.os === "function"
+          ? rule.os(ua)
+          : rule.os || "";
 
-  if (/CriOS\/([\d.]+)/.test(userAgent)) {
-    // Chrome browser on iOS
-    const versionMatch = userAgent.match(/CriOS\/([\d.]+)/);
-    engineInfo = {
-      engine: "Chrome iOS",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: "iOS",
-      osVersion: getiOSVersion() || "",
-    };
-  } else if (/FxiOS\/([\d.]+)/.test(userAgent)) {
-    // Firefox browser on iOS
-    const versionMatch = userAgent.match(/FxiOS\/([\d.]+)/);
-    engineInfo = {
-      engine: "Firefox iOS",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: "iOS",
-      osVersion: getiOSVersion() || "",
-    };
-  } else if (userAgent.includes("EdgiOS")) {
-    // Edge browser on iOS
-    const versionMatch = userAgent.match(
-      /EdgiOS\/([\d.]+)/,
-    );
-    engineInfo = {
-      engine: "Edge iOS",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: "iOS",
-      osVersion: getiOSVersion() || "",
-    };
-  } else if (userAgent.includes("OPiOS")) {
-    // Opera browser on iOS
-    const versionMatch = userAgent.match(/OPiOS\/([\d.]+)/);
-    engineInfo = {
-      engine: "Opera iOS",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: "iOS",
-      osVersion: getiOSVersion() || "",
-    };
-  } else if (
-    userAgent.includes("Safari") &&
-    !userAgent.includes("Chrome")
-  ) {
-    // Safari browser
-    const versionMatch = userAgent.match(
-      /Version\/([\d.]+)/,
-    );
-    engineInfo = {
-      engine: "Safari",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: isIOS ? "iOS" : "macOS",
-      osVersion: isIOS ? getiOSVersion() || "" : "",
-    };
-  } else if (
-    userAgent.includes("Chrome") &&
-    userAgent.includes("Safari")
-  ) {
-    // Desktop Chrome browser
-    const versionMatch = userAgent.match(
-      /Chrome\/([\d.]+)/,
-    );
-    engineInfo = {
-      engine: "Chrome",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: "",
-      osVersion: "",
-    };
-  } else if (userAgent.includes("Firefox")) {
-    // Desktop Firefox browser
-    const versionMatch = userAgent.match(
-      /Firefox\/([\d.]+)/,
-    );
-    engineInfo = {
-      engine: "Firefox",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: "",
-      osVersion: "",
-    };
-  } else if (userAgent.includes("Edge")) {
-    // Edge browser
-    const versionMatch = userAgent.match(/Edg\/([\d.]+)/);
-    engineInfo = {
-      engine: "Edge",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: "",
-      osVersion: "",
-    };
-  } else if (userAgent.includes("Opera")) {
-    // Opera browser
-    const versionMatch = userAgent.match(/OPR\/([\d.]+)/);
-    engineInfo = {
-      engine: "Opera",
-      version: versionMatch ? versionMatch[1] : "unknown",
-      os: "",
-      osVersion: "",
-    };
+      engineInfo = {
+        engine: rule.engine,
+        version: getVersion(
+          ua,
+          rule.regex,
+          rule.versionIndex,
+        ),
+        os: os.toString(),
+        osVersion: os === "iOS" ? getiOSVersion() : "",
+      };
+      break;
+    }
   }
 
   return engineInfo;
 }
 
 function getiOSVersion() {
-  const userAgent =
-    // @ts-ignore
-    navigator.userAgent || navigator.vendor || window.opera;
-  const iOSMatch = userAgent.match(
-    /OS (\d+)[_.](\d+)(?:[_.](\d+))?/,
+  const match = navigator.userAgent.match(
+    /OS (\d+)_(\d+)(?:_(\d+))?/,
   );
-  if (iOSMatch && iOSMatch.length > 2) {
-    const major = parseInt(iOSMatch[1], 10);
-    const minor = parseInt(iOSMatch[2], 10);
-    const patch = iOSMatch[3]
-      ? parseInt(iOSMatch[3], 10)
-      : 0;
-    return `${major}.${minor}.${patch}`;
-  }
-  return null;
+  if (!match) return "unknown";
+  return [match[1], match[2], match[3] || "0"].join(".");
 }
 
 function compareVersions(current: string, target: string) {
-  const currentParts = current.split(".").map(Number);
-  const targetParts = target.split(".").map(Number);
+  const normalize = (v: string) =>
+    v.split(".").map(Number).concat([0, 0, 0]).slice(0, 3);
 
-  for (
-    let i = 0;
-    i < Math.max(currentParts.length, targetParts.length);
-    i++
-  ) {
-    const currentPart = currentParts[i] || 0;
-    const targetPart = targetParts[i] || 0;
+  const currentParts = normalize(current);
+  const targetParts = normalize(target);
 
-    if (currentPart < targetPart) return false;
-    if (currentPart > targetPart) return true;
+  for (let i = 0; i < 3; i++) {
+    if (currentParts[i] < targetParts[i]) return false;
+    if (currentParts[i] > targetParts[i]) return true;
   }
-  return true; // Returns true when version numbers are equal
+  return true;
 }
+
+export const MIN_VERSIONS: Record<string, string> = {
+  Chrome: "66.0.0", // Chrome 66+
+  Firefox: "63.0.0", // Firefox 63+
+  Safari: "16.0.0", // Safari 16+
+  Edge: "79.0.0", // Chromium-based Edge 79+
+  Opera: "53.0.0", // Opera 53+
+  "Chrome iOS": "16.0.0", // iOS 16+
+  "Firefox iOS": "16.0.0", // iOS 16+
+  "Edge iOS": "16.0.0", // iOS 16+
+  "Opera iOS": "16.0.0", // iOS 16+
+};
 
 export function checkBrowserSupport() {
   const { engine, version, os, osVersion } =
     getBrowserEngineInfo();
 
   if (os === "iOS") {
-    const minIOSVersion = "13.0";
-    return (
-      osVersion && compareVersions(osVersion, minIOSVersion)
-    );
-  } else {
-    const minVersions: Record<string, string> = {
-      Chrome: "66",
-      Firefox: "63",
-      Safari: "13",
-      Edge: "79", // Edge based on Chromium
-      Opera: "53",
-    };
-
-    return (
-      engine &&
-      version &&
-      minVersions[engine] &&
-      compareVersions(version, minVersions[engine])
-    );
+    const minIOSVersion = "16.0.0";
+    return compareVersions(osVersion, minIOSVersion);
   }
+
+  const minVersion = MIN_VERSIONS[engine];
+  if (!minVersion) return false;
+
+  return compareVersions(version, minVersion);
 }
 
 export function isWebRTCAvailable() {
