@@ -47,7 +47,7 @@ import { useAudioPlayer } from "@/components/audio-player";
 import {
   useVideoDisplay,
   VideoDisplay,
-} from "../../components/video-display";
+} from "@/components/video-display";
 import {
   Tooltip,
   TooltipContent,

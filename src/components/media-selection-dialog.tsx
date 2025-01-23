@@ -6,11 +6,9 @@ import {
 } from "solid-js";
 import { createDialog } from "./dialogs/dialog";
 import {
-  IconMicFilled,
   IconMonitor,
   IconSettings,
   IconVideoCam,
-  IconVolumeOff,
 } from "./icons";
 import {
   Tabs,
