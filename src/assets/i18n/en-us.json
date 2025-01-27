@@ -141,11 +141,15 @@
         "title": "Video Call Settings",
         "video_max_bitrate": {
           "title": "Video Max Bitrate",
-          "description": "Change the video max bitrate of the stream"
+          "description": "Max video bitrate of the stream"
         },
         "audio_max_bitrate": {
           "title": "Audio Max Bitrate",
-          "description": "Change the audio max bitrate of the stream"
+          "description": "Max audio bitrate of the stream"
+        },
+        "degradation_preference": {
+          "title": "Degradation Preference",
+          "description": "When the network condition is poor, the application will prioritize video quality or frame rate"
         }
       }
     }
@@ -430,12 +434,14 @@
       "speaker_constraints": "Speaker Constraints",
       "not_support_display_media": "Your browser does not support display media",
       "not_support_user_media": "Your browser does not support user media",
+      "video_constraints": "Video Constraints",
       "constraints": {
         "noise_suppression": "Noise Suppression",
         "echo_cancellation": "Echo Cancellation",
         "auto_gain_control": "Auto Gain Control",
         "voice_isolation": "Voice Isolation",
-        "suppress_local_audio_playback": "Suppress Local Audio Playback"
+        "suppress_local_audio_playback": "Suppress Local Audio Playback",
+        "max_frame_rate": "Max Frame Rate"
       }
     },
     "nav": {

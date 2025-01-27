@@ -36,7 +36,7 @@ import {
   SessionMessage,
   StoreMessage,
   TextMessage,
-} from "@/libs/core/messge";
+} from "@/libs/core/message";
 import { cacheManager } from "@/libs/services/cache-serivce";
 import { transferManager } from "@/libs/services/transfer-service";
 import { PortableContextMenu } from "@/components/portable-contextmenu";

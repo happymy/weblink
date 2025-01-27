@@ -28,7 +28,7 @@ import {
   SendClipboardMessage,
   messageStores,
   StoreMessage,
-} from "@/libs/core/messge";
+} from "@/libs/core/message";
 import { ChatBar } from "@/routes/client/[id]/components/chat-bar";
 import { sessionService } from "@/libs/services/session-service";
 import {

@@ -36,7 +36,7 @@ import {
   SendTextMessage,
   SessionMessage,
   StorageMessage,
-} from "./messge";
+} from "./message";
 import { sessionService } from "../services/session-service";
 import { appOptions } from "@/options";
 import { toast } from "solid-sonner";
@@ -107,11 +107,6 @@ export interface WebRTCContextProps {
 }
 
 export interface WebRTCProviderProps extends ParentProps {
-  onTrackChanged?: (
-    target: string,
-    pc: RTCPeerConnection,
-  ) => void;
-
   localStream: MediaStream | null;
 }
 

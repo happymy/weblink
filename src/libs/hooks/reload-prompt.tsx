@@ -19,7 +19,6 @@ export const createReloadPrompt = () => {
       async onRegisteredSW(swScriptUrl, registration) {
         registration &&
           setInterval(async () => {
-            console.debug("Checking for sw update");
             await registration.update();
           }, 60 * 1000 /* 60s for testingpurposes */);
       },

@@ -42,7 +42,7 @@ import {
   ChunkMetaData,
 } from "@/libs/cache";
 import { cn } from "@/libs/cn";
-import { messageStores } from "@/libs/core/messge";
+import { messageStores } from "@/libs/core/message";
 import { useWebRTC } from "@/libs/core/rtc-context";
 import { ClientInfo, Client } from "@/libs/core/type";
 import { cacheManager } from "@/libs/services/cache-serivce";

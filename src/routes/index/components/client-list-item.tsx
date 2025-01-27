@@ -18,7 +18,7 @@ import { Client, ClientInfo } from "@/libs/core/type";
 import {
   messageStores,
   StoreMessage,
-} from "@/libs/core/messge";
+} from "@/libs/core/message";
 import { PortableContextMenu } from "@/components/portable-contextmenu";
 import {
   ContextMenuGroup,

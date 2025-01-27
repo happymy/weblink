@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.6] - 2025-01-26
+
+### New Features
+
+- Add video constraints modification 添加视频约束修改功能
+
+### Bug Fixes
+
+- Fix the video max bitrate not working 修复了视频最大比特率不工作的问题
+
 ## [0.10.5] - 2025-01-14
 
 ### Bug Fixes

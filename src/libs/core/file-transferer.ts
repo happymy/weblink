@@ -16,7 +16,7 @@ import {
   mergeRanges,
   rangesIterator,
 } from "../utils/range";
-import { RequestFileMessage } from "./messge";
+import { RequestFileMessage } from "./message";
 import {
   blobToArrayBuffer,
   buildPacket,

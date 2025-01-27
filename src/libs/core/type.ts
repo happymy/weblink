@@ -1,5 +1,5 @@
 import { ChunkMetaData } from "../cache";
-import { SendClipboardMessage } from "./messge";
+import { SendClipboardMessage } from "./message";
 import { TransferClient } from "./services/type";
 
 export type RoomStatus = {

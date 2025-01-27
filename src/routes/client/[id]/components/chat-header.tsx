@@ -8,7 +8,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
-import { messageStores } from "@/libs/core/messge";
+import { messageStores } from "@/libs/core/message";
 import { getInitials } from "@/libs/utils/name";
 import { sessionService } from "@/libs/services/session-service";
 import {

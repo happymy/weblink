@@ -20,7 +20,7 @@ import { ClientID, ClientInfo } from "@/libs/core/type";
 import { createIsMobile } from "@/libs/hooks/create-mobile";
 import { makePersisted } from "@solid-primitives/storage";
 import { IconPerson } from "@/components/icons";
-import { messageStores } from "@/libs/core/messge";
+import { messageStores } from "@/libs/core/message";
 import { t } from "@/i18n";
 import { cn } from "@/libs/cn";
 import { sessionService } from "@/libs/services/session-service";

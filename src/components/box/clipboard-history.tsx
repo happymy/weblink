@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { toast } from "solid-sonner";
-import { SendClipboardMessage } from "@/libs/core/messge";
+import { SendClipboardMessage } from "@/libs/core/message";
 import { createTimeAgo } from "@/libs/utils/timeago";
 export const createClipboardHistoryDialog = () => {
   const { open: openDialog, Component } = createDialog({

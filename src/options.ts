@@ -61,7 +61,7 @@ export type AppOption = {
 
   // Stream
   videoMaxBitrate: number;
-  audioMaxBitrate: number;
+  degradationPreference: RTCDegradationPreference;
 };
 
 export function parseTurnServers(
@@ -142,7 +142,6 @@ export const getDefaultAppOptions = () => {
     bufferedAmountLowThreshold: 32 * 1024,
     maxMomeryCacheSlices: 12,
     videoMaxBitrate: 128 * 1024 * 1024,
-    audioMaxBitrate: 512 * 1024,
     servers: {
       stuns:
         import.meta.env.VITE_STUN_SERVERS?.split(",") ?? [],
@@ -159,6 +158,7 @@ export const getDefaultAppOptions = () => {
     websocketUrl: defaultWebsocketUrl,
     // todo: add dialog to prompt user the file size
     maxFileSize: 1024 * 1024 * 1024, // 1GB
+    degradationPreference: "balanced",
   } satisfies AppOption;
 };
 

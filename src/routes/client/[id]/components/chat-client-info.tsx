@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { t } from "@/i18n";
-import { messageStores } from "@/libs/core/messge";
+import { messageStores } from "@/libs/core/message";
 import { PeerSession } from "@/libs/core/session";
 import {
   ClientInfo,

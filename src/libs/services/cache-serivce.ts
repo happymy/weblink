@@ -1,27 +1,19 @@
 import {
   ChunkCache,
   IDBChunkCache,
-} from "../cache/chunk-cache";
-import {
-  EventHandler,
-  MultiEventEmitter,
-} from "../utils/event-emitter";
+} from "@/libs/cache/chunk-cache";
 import {
   createStore,
   SetStoreFunction,
 } from "solid-js/store";
-import { FileID } from "../core/type";
-import {
-  Accessor,
-  createSignal,
-  Setter,
-} from "solid-js";
+import { FileID } from "@/libs/core/type";
+import { Accessor, createSignal, Setter } from "solid-js";
 import { appOptions } from "@/options";
 import {
   ChunkCacheInfo,
   DBNAME_PREFIX,
   FileMetaData,
-} from "../cache";
+} from "@/libs/cache";
 import { v4 } from "uuid";
 
 class FileCacheFactory {

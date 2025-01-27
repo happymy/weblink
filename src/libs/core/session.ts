@@ -6,7 +6,7 @@ import {
   EventHandler,
   MultiEventEmitter,
 } from "../utils/event-emitter";
-import { SessionMessage } from "./messge";
+import { SessionMessage } from "./message";
 import { waitChannel } from "./utils/channel";
 import { appOptions } from "@/options";
 import { catchErrorAsync, catchErrorSync } from "../catch";
@@ -24,6 +24,7 @@ export type PeerSessionEventMap = {
   messagechannelchange: "ready" | "closed";
   remotestreamchange: MediaStream | null;
   statuschange: Exclude<PeerSessionStatus, "init">;
+  peerconnectioninit: RTCPeerConnection;
 };
 
 type PeerSessionStatus =
@@ -363,9 +364,11 @@ export class PeerSession {
         direction: "recvonly",
       });
     }
+    this.dispatchEvent("peerconnectioninit", pc);
 
     this.setStatus("created");
     this.popSignalCache();
+
     return pc;
   }
 

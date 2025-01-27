@@ -17,6 +17,15 @@ import {
 import { Label } from "./ui/label";
 import { createDialog } from "./dialogs/dialog";
 import { makePersisted } from "@solid-primitives/storage";
+import {
+  Slider,
+  SliderFill,
+  SliderLabel,
+  SliderThumb,
+  SliderTrack,
+  SliderValueLabel,
+} from "./ui/slider";
+import { createDebounceAsync } from "@/libs/hooks/debounce";
 
 const getSupportedConstraints = () => {
   return "mediaDevices" in navigator
@@ -61,11 +70,15 @@ export const [speakerConstraints, setSpeakerConstraints] =
   );
 
 export const [videoConstraints, setVideoConstraints] =
-  createStore({
-    width: { max: 1920 },
-    height: { max: 1080 },
-    frameRate: { max: 60 },
-  });
+  makePersisted(
+    createStore<MediaTrackConstraintSet>({
+      frameRate: { max: 60 },
+    }),
+    {
+      name: "videoConstraints",
+      storage: sessionStorage,
+    },
+  );
 
 export const createApplyConstraintsDialog = () => {
   const [mediaStream, setMediaStream] =
@@ -82,6 +95,10 @@ export const createApplyConstraintsDialog = () => {
 
   const audioTracks = () => {
     return mediaStream()?.getAudioTracks();
+  };
+
+  const videoTrack = () => {
+    return mediaStream()?.getVideoTracks()[0];
   };
 
   const microphoneAudioTrack = () => {
@@ -130,6 +147,18 @@ export const createApplyConstraintsDialog = () => {
                 )}
               </Label>
               <SpeakerTrackConstraints track={track()} />
+            </div>
+          )}
+        </Show>
+        <Show when={videoTrack()}>
+          {(track) => (
+            <div class="flex flex-col gap-2 rounded-md border border-border p-2">
+              <Label class="font-bold">
+                {t(
+                  "common.media_selection_dialog.video_constraints",
+                )}
+              </Label>
+              <VideoTrackConstraints track={track()} />
             </div>
           )}
         </Show>
@@ -356,6 +385,83 @@ export const MicrophoneTrackConstraints = (props: {
   );
 };
 
+export const VideoTrackConstraints = (props: {
+  track: MediaStreamTrack;
+}) => {
+  const capabilities = createMemo(() => {
+    const capabilities = props.track.getCapabilities();
+    return {
+      frameRate: "frameRate" in capabilities,
+    };
+  });
+
+  const { debouncedFn: applyConstraints } =
+    createDebounceAsync(
+      async (
+        name: keyof typeof videoConstraints,
+        value: MediaTrackConstraintSet[keyof typeof videoConstraints],
+      ) => {
+        const constraints =
+          props.track.getConstraints() as any;
+        const newConstraints = {
+          ...constraints,
+          [name]: value,
+        };
+        const [err] = await catchErrorAsync(
+          props.track.applyConstraints(newConstraints),
+        );
+        if (err) {
+          console.error(err);
+          toast.error(
+            `Error applying ${name} constraint: ${err.message}`,
+          );
+          setVideoConstraints(name, constraints[name]);
+          return;
+        }
+      },
+    );
+
+  return (
+    <div class="flex flex-col gap-2">
+      <Show when={capabilities().frameRate}>
+        <Slider
+          minValue={1}
+          maxValue={120}
+          value={[
+            typeof videoConstraints.frameRate === "number"
+              ? videoConstraints.frameRate
+              : (videoConstraints.frameRate?.max ?? 60),
+          ]}
+          onChange={(value) => {
+            setVideoConstraints("frameRate", {
+              max: value[0],
+            });
+            applyConstraints("frameRate", {
+              max: value[0],
+            });
+          }}
+          getValueLabel={({ values }) => `${values[0]} FPS`}
+          class="gap-2"
+        >
+          <div class="flex w-full justify-between">
+            <SliderLabel>
+              {t(
+                "common.media_selection_dialog.constraints.max_frame_rate",
+              )}
+            </SliderLabel>
+            <SliderValueLabel />
+          </div>
+          <SliderTrack>
+            <SliderFill />
+            <SliderThumb />
+            <SliderThumb />
+          </SliderTrack>
+        </Slider>
+      </Show>
+    </div>
+  );
+};
+
 export const createPresetSpeakerTrackConstraintsDialog =
   () => {
     return createDialog({
@@ -494,3 +600,43 @@ export const createPresetMicrophoneConstraintsDialog =
       ),
     });
   };
+
+export const createPresetVideoConstraintsDialog = () => {
+  return createDialog({
+    title: () => t("common.action.settings"),
+    content: () => (
+      <div class="flex flex-col gap-2">
+        <Slider
+          minValue={1}
+          maxValue={120}
+          value={[
+            typeof videoConstraints.frameRate === "number"
+              ? videoConstraints.frameRate
+              : (videoConstraints.frameRate?.max ?? 30),
+          ]}
+          onChange={(value) =>
+            setVideoConstraints("frameRate", {
+              max: value[0],
+            })
+          }
+          getValueLabel={({ values }) => `${values[0]} FPS`}
+          class="gap-2"
+        >
+          <div class="flex w-full justify-between">
+            <SliderLabel>
+              {t(
+                "common.media_selection_dialog.constraints.max_frame_rate",
+              )}
+            </SliderLabel>
+            <SliderValueLabel />
+          </div>
+          <SliderTrack>
+            <SliderFill />
+            <SliderThumb />
+            <SliderThumb />
+          </SliderTrack>
+        </Slider>
+      </div>
+    ),
+  });
+};

@@ -5,12 +5,10 @@ import {
   untrack,
 } from "solid-js";
 
-const [streamLocal, setLocalStream] =
+const [localStream, setLocalStream] =
   createSignal<MediaStream | null>(null);
 
-export const localStream = streamLocal;
-
-export const [displayStream, setDisplayStream] =
+const [displayStream, setDisplayStream] =
   createSignal<MediaStream | null>();
 
 createRoot(() => {
@@ -28,7 +26,6 @@ createRoot(() => {
     }
 
     if (display) {
-      
       display.getTracks().forEach((track) => {
         track.addEventListener("ended", () => {
           console.log(
@@ -47,3 +44,6 @@ createRoot(() => {
     }
   });
 });
+
+export { localStream, setDisplayStream };
+

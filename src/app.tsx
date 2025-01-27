@@ -68,7 +68,7 @@ import { Button } from "./components/ui/button";
 import { t, isDictLoaded } from "./i18n";
 import { v4 } from "uuid";
 import { createIsMobile } from "./libs/hooks/create-mobile";
-import { messageStores } from "./libs/core/messge";
+import { messageStores } from "./libs/core/message";
 import { sleep } from "./libs/utils/sleep";
 import { Label } from "./components/ui/label";
 import { Textarea } from "./components/ui/textarea";

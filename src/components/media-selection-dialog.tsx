@@ -48,6 +48,7 @@ import { cn } from "@/libs/cn";
 import {
   createPresetMicrophoneConstraintsDialog,
   createPresetSpeakerTrackConstraintsDialog,
+  createPresetVideoConstraintsDialog,
   microphoneConstraints,
   speakerConstraints,
   videoConstraints,
@@ -305,6 +306,11 @@ export const createMediaSelectionDialog = () => {
     Component: SpeakerConstraintsDialog,
   } = createPresetSpeakerTrackConstraintsDialog();
 
+  const {
+    open: openVideoConstraintsDialog,
+    Component: VideoConstraintsDialog,
+  } = createPresetVideoConstraintsDialog();
+
   const requestMicrophonePermission = async () => {
     if (!("mediaDevices" in navigator)) {
       toast.error(
@@ -360,6 +366,7 @@ export const createMediaSelectionDialog = () => {
         >
           <MicrophoneConstraintsDialog />
           <SpeakerConstraintsDialog />
+          <VideoConstraintsDialog />
           <TabsList>
             <TabsTrigger value="screen" class="gap-1">
               <IconMonitor class="size-4" />
@@ -423,7 +430,22 @@ export const createMediaSelectionDialog = () => {
                 </Button>
               </Show>
             </div>
-
+            <Show when={canGetDisplayMedia}>
+              <label class="flex items-center justify-between gap-2 p-2">
+                <p class="text-sm text-muted-foreground">
+                  {t(
+                    "common.media_selection_dialog.video_constraints",
+                  )}
+                </p>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={openVideoConstraintsDialog}
+                >
+                  <IconSettings class="size-6" />
+                </Button>
+              </label>
+            </Show>
             <div
               class={cn(
                 "flex flex-col gap-2 rounded-lg px-2",
@@ -695,40 +717,50 @@ export const createMediaSelectionDialog = () => {
               </Switch>
 
               <Show when={canUseUserCamera()}>
-                <Select<MediaDeviceInfoType>
-                  value={devices.camera}
-                  placeholder={
-                    <span class="muted">
-                      {availableCameras().length === 0
-                        ? t(
-                            "common.media_selection_dialog.no_camera_available",
-                          )
-                        : t(
-                            "common.media_selection_dialog.select_camera",
-                          )}
-                    </span>
-                  }
-                  onChange={(value) => {
-                    setDevices("camera", value);
-                  }}
-                  optionTextValue="label"
-                  optionValue="deviceId"
-                  options={availableCameras()}
-                  itemComponent={(props) => (
-                    <SelectItem item={props.item}>
-                      {props.item.rawValue?.label}
-                    </SelectItem>
-                  )}
-                >
-                  <SelectTrigger class="border-none transition-colors hover:bg-muted/80">
-                    <SelectValue<MediaDeviceInfoType>>
-                      {(state) =>
-                        state.selectedOption().label
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent />
-                </Select>
+                <div class="flex w-full gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={openVideoConstraintsDialog}
+                  >
+                    <IconSettings class="size-6" />
+                  </Button>
+                  <Select<MediaDeviceInfoType>
+                    class="flex-1"
+                    value={devices.camera}
+                    placeholder={
+                      <span class="muted">
+                        {availableCameras().length === 0
+                          ? t(
+                              "common.media_selection_dialog.no_camera_available",
+                            )
+                          : t(
+                              "common.media_selection_dialog.select_camera",
+                            )}
+                      </span>
+                    }
+                    onChange={(value) => {
+                      setDevices("camera", value);
+                    }}
+                    optionTextValue="label"
+                    optionValue="deviceId"
+                    options={availableCameras()}
+                    itemComponent={(props) => (
+                      <SelectItem item={props.item}>
+                        {props.item.rawValue?.label}
+                      </SelectItem>
+                    )}
+                  >
+                    <SelectTrigger class="border-none transition-colors hover:bg-muted/80">
+                      <SelectValue<MediaDeviceInfoType>>
+                        {(state) =>
+                          state.selectedOption().label
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent />
+                  </Select>
+                </div>
               </Show>
             </div>
             <div
@@ -855,19 +887,6 @@ export const createMediaSelectionDialog = () => {
                   >
                     {t("common.action.close")}
                   </Button>
-                  <Show when={canGetUserMedia}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        closeStream();
-                        openCamera();
-                      }}
-                      class="w-full"
-                    >
-                      {t("common.action.change")}
-                    </Button>
-                  </Show>
                 </Show>
               </Show>
             </div>

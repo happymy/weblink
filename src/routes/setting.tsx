@@ -72,6 +72,13 @@ import { createElementSize } from "@solid-primitives/resize-observer";
 import DropArea from "@/components/drop-area";
 import { catchErrorAsync } from "@/libs/catch";
 import { cn } from "@/libs/cn";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Settings() {
   const { open, Component: AboutDialogComponent } =
@@ -1151,9 +1158,9 @@ export default function Settings() {
               </h4>
               <label class="flex flex-col gap-2">
                 <Slider
-                  minValue={512 * 1024}
-                  maxValue={200 * 1024 * 1024}
-                  step={512 * 1024}
+                  minValue={128 * 1024}
+                  maxValue={256 * 1024 * 1024}
+                  step={128 * 1024}
                   defaultValue={[
                     appOptions.videoMaxBitrate,
                   ]}
@@ -1189,41 +1196,40 @@ export default function Settings() {
                 </p>
               </label>
               <label class="flex flex-col gap-2">
-                <Slider
-                  minValue={1024}
-                  maxValue={512 * 1024}
-                  step={1024}
-                  defaultValue={[
-                    appOptions.audioMaxBitrate,
-                  ]}
-                  getValueLabel={({ values }) =>
-                    `${formatBitSize(values[0], 0)}ps`
-                  }
-                  class="gap-2"
+                <Label>
+                  {t(
+                    "setting.advanced_settings.stream.degradation_preference.title",
+                  )}
+                </Label>
+                <Select
+                  value={appOptions.degradationPreference}
                   onChange={(value) => {
                     setAppOptions(
-                      "audioMaxBitrate",
-                      value[0],
+                      "degradationPreference",
+                      value ?? "balanced",
                     );
                   }}
+                  options={[
+                    "balanced",
+                    "maintain-framerate",
+                    "maintain-resolution",
+                  ]}
+                  itemComponent={(props) => (
+                    <SelectItem item={props.item}>
+                      {props.item.rawValue}
+                    </SelectItem>
+                  )}
                 >
-                  <div class="flex w-full justify-between">
-                    <SliderLabel>
-                      {t(
-                        "setting.advanced_settings.stream.audio_max_bitrate.title",
-                      )}
-                    </SliderLabel>
-                    <SliderValueLabel />
-                  </div>
-                  <SliderTrack>
-                    <SliderFill />
-                    <SliderThumb />
-                    <SliderThumb />
-                  </SliderTrack>
-                </Slider>
+                  <SelectTrigger>
+                    <SelectValue<RTCDegradationPreference>>
+                      {(state) => state.selectedOption()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent />
+                </Select>
                 <p class="muted">
                   {t(
-                    "setting.advanced_settings.stream.audio_max_bitrate.description",
+                    "setting.advanced_settings.stream.degradation_preference.description",
                   )}
                 </p>
               </label>

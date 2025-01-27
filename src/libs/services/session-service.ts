@@ -19,10 +19,11 @@ import {
 import {
   SendClipboardMessage,
   StorageMessage,
-} from "../core/messge";
+} from "@/libs/core/message";
 import { v4 } from "uuid";
-import { getIceServers } from "../core/store";
+import { getIceServers } from "@/libs/core/store";
 import { appOptions } from "@/options";
+import { catchErrorAsync, catchErrorSync } from "../catch";
 
 class SessionService {
   readonly sessions: Record<ClientID, PeerSession>;
@@ -183,6 +184,44 @@ class SessionService {
 
     const controller = new AbortController();
 
+    session.addEventListener("peerconnectioninit", (ev) => {
+      const pc = ev.detail;
+      pc.getSenders().forEach((sender) => {
+        switch (sender.track?.kind) {
+          case "audio": {
+            const audioParameters = changeAudioEncoding(
+              sender.getParameters(),
+            );
+            if (audioParameters) {
+              sender
+                .setParameters(audioParameters)
+                .catch((e) => {
+                  console.error(
+                    `set audio parameters error: ${e}`,
+                  );
+                });
+            }
+            break;
+          }
+          case "video": {
+            const videoParameters = changeVideoEncoding(
+              sender.getParameters(),
+            );
+            if (videoParameters) {
+              sender
+                .setParameters(videoParameters)
+                .catch((e) => {
+                  console.error(
+                    `set video parameters error: ${e}`,
+                  );
+                });
+            }
+            break;
+          }
+        }
+      });
+    });
+
     session.addEventListener(
       "statuschange",
       (ev) => {
@@ -292,5 +331,90 @@ createEffect(() => {
 });
 
 sessionService = new SessionService();
+
+function changeAudioEncoding(
+  parameters: RTCRtpSendParameters,
+): RTCRtpSendParameters | null {
+  if (!parameters.encodings) {
+    parameters.encodings = [{ active: true }];
+  }
+  const encoding = parameters.encodings[0] ?? {};
+  encoding.active = true;
+  // encoding.maxBitrate = appOptions.audioMaxBitrate;
+  encoding.priority = "high";
+  encoding.networkPriority = "high";
+  return parameters;
+}
+
+function changeVideoEncoding(
+  parameters: RTCRtpSendParameters,
+): RTCRtpSendParameters | null {
+  parameters.degradationPreference =
+    appOptions.degradationPreference ?? "balanced";
+  if (!parameters.encodings) {
+    parameters.encodings = [{ active: true }];
+  }
+  const encoding = parameters.encodings[0] ?? {};
+  encoding.active = true;
+  encoding.maxBitrate = appOptions.videoMaxBitrate;
+  encoding.priority = "high";
+  encoding.networkPriority = "high";
+  return parameters;
+}
+
+createEffect(() => {
+  appOptions.videoMaxBitrate;
+  appOptions.degradationPreference;
+  Object.values(sessionService.sessions).forEach(
+    (session) => {
+      session.peerConnection
+        ?.getSenders()
+        .forEach((sender) => {
+          switch (sender.track?.kind) {
+            case "audio":
+              const audioParameters = changeAudioEncoding(
+                sender.getParameters(),
+              );
+              if (audioParameters) {
+                sender
+                  .setParameters(audioParameters)
+                  .then(() => {
+                    console.log(
+                      `set audio parameters success, encoding:`,
+                      audioParameters.encodings?.[0],
+                    );
+                  })
+                  .catch((e) => {
+                    console.error(
+                      `set audio parameters error: ${e}`,
+                    );
+                  });
+              }
+              break;
+            case "video":
+              const videoParameters = changeVideoEncoding(
+                sender.getParameters(),
+              );
+              if (videoParameters) {
+                sender
+                  .setParameters(videoParameters)
+                  .then(() => {
+                    console.log(
+                      `set video parameters success, encoding:`,
+                      videoParameters.encodings?.[0],
+                    );
+                  })
+                  .catch((e) => {
+                    console.error(
+                      `set video parameters error: ${e}`,
+                    );
+                  });
+              }
+              break;
+          }
+        });
+    },
+  );
+});
 
 export { sessionService };
