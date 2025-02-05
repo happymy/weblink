@@ -165,8 +165,6 @@ export class PeerSession {
     const pc = new RTCPeerConnection({
       iceServers: this.iceServers,
       iceTransportPolicy: this.relayOnly ? "relay" : "all",
-      iceCandidatePoolSize: 10,
-      bundlePolicy: "max-bundle",
     });
     this.peerConnection = pc;
 
