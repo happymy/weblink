@@ -91,10 +91,7 @@ export const VideoDisplay = (
       value={{ videoRef, videoTrack, audioTracks }}
     >
       <div
-        class={cn(
-          "relative overflow-hidden rounded-lg bg-muted",
-          props.class,
-        )}
+        class={cn("relative overflow-hidden", props.class)}
       >
         <Show
           when={props.stream}

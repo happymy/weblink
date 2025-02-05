@@ -372,7 +372,10 @@
       "pause": "暂停",
       "continue": "继续",
       "global_mute": "全局静音",
-      "global_unmute": "全局恢复"
+      "global_unmute": "全局取消静音",
+      "reset_layout": "重置布局",
+      "compact_layout": "紧凑布局",
+      "restore": "恢复"
     },
     "clipboard_history": {
       "title": "剪贴板历史"

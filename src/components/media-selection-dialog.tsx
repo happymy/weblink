@@ -389,7 +389,7 @@ export const createMediaSelectionDialog = () => {
             when={stream()}
             fallback={
               <VideoDisplay
-                class="aspect-video w-full"
+                class="aspect-video w-full bg-muted rounded-lg"
                 stream={localStream()}
                 name={t(
                   "common.media_selection_dialog.current",
@@ -399,7 +399,7 @@ export const createMediaSelectionDialog = () => {
             }
           >
             <VideoDisplay
-              class="aspect-video w-full"
+              class="aspect-video w-full bg-muted rounded-lg"
               stream={stream()}
               muted={true}
               name={t(

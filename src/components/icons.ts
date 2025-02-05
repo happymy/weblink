@@ -92,6 +92,7 @@ import IconPip from "@material-symbols/svg-400/outlined/pip.svg?component-solid"
 import IconPipExit from "@material-symbols/svg-400/outlined/pip_exit.svg?component-solid";
 import IconMeetingRoom from "@material-symbols/svg-400/outlined/meeting_room.svg?component-solid";
 import IconResetWrench from "@material-symbols/svg-400/outlined/reset_wrench.svg?component-solid";
+import IconViewCompactAlt from "@material-symbols/svg-400/outlined/view_compact_alt.svg?component-solid";
 export {
   IconDownload,
   IconDelete,
@@ -187,4 +188,5 @@ export {
   IconPipExit,
   IconMeetingRoom,
   IconResetWrench,
+  IconViewCompactAlt,
 };

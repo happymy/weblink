@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0] - 2025-02-05
+
+### New Features
+
+- Add grid layout, support drag and resize 添加网格布局，支持拖动和调整大小
+
 ## [0.10.6] - 2025-01-26
 
 ### New Features
