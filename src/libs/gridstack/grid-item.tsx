@@ -148,7 +148,7 @@ export const GridItemContent = (
   ]);
   return (
     <div
-      class={clsx(local.class, "grid-stack-item-content")}
+      class={clsx(local.class, "grid-stack-item-content touch-manipulation")}
       {...other}
     >
       {local.children}

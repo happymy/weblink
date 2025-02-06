@@ -116,7 +116,8 @@ export const VideoDisplay = (
             <video
               autoplay
               muted={props.muted}
-              class="absolute inset-0 size-full bg-black object-contain"
+              class="pointer-events-none absolute inset-0 size-full bg-black
+                object-contain"
               ref={setVideoRef}
             />
           </Show>

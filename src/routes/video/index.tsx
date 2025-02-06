@@ -128,13 +128,12 @@ export default function Video() {
         cellHeight: gridCellHeight(),
         column: gridColumn(),
         animate: true,
-        float: true,
         minRow: 1,
         resizable: {
-          handles: "n, s, w, e, sw, se, nw, ne",
+          handles: "all",
         },
-        alwaysShowResizeHandle: false,
-        removable: "[data-removable-area]",
+        acceptWidgets: true,
+        removable: "[data-gs-removal-zone]",
       }) satisfies GridStackOptions,
   );
 
@@ -165,6 +164,22 @@ export default function Video() {
 
   return (
     <>
+      <div
+        class={cn(
+          "fixed bottom-8 left-1/2 size-28 -translate-x-1/2",
+          "rounded-xl border-2 border-dashed border-destructive",
+          "bg-destructive/10 transition-all hover:border-destructive/80",
+          `visible touch-manipulation opacity-100
+          hover:bg-destructive/20`,
+          !dragging() &&
+            "invisible scale-[0.95] cursor-move opacity-0",
+        )}
+        data-gs-removal-zone
+      >
+        <div class="flex h-full items-center justify-center text-destructive">
+          <IconDelete class="size-8" />
+        </div>
+      </div>
       <Tabs
         value={tab()}
         onChange={(value) => setTab(value)}
@@ -402,59 +417,7 @@ export default function Video() {
             )}
           </For>
         </GridStack>
-
-        {/* <div
-            data-removable-area
-            class="flex h-16 flex-col items-center gap-2 border-l border-border
-              p-2 sm:h-auto sm:w-16"
-          >
-            <For each={removedClientIds()}>
-              {(clientId) => (
-                <Show
-                  when={
-                    sessionService.clientViewData[clientId]
-                  }
-                >
-                  {(client) => (
-                    <Avatar
-                      class="size-10 cursor-pointer self-center"
-                      onClick={() => {
-                        setRemovedClientIds((prev) =>
-                          prev.filter(
-                            (id) => id !== clientId,
-                          ),
-                        );
-                      }}
-                    >
-                      <AvatarImage
-                        src={client().avatar ?? undefined}
-                      />
-                      <AvatarFallback>
-                        {getInitials(client().name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                </Show>
-              )}
-            </For>
-          </div> */}
       </Tabs>
-
-      <div
-        data-removable-area
-        class={cn(
-          "fixed bottom-8 left-1/2 size-28 -translate-x-1/2",
-          "rounded-xl border-2 border-dashed border-destructive",
-          "bg-destructive/10 transition-all hover:border-destructive/80",
-          "visible opacity-100 hover:bg-destructive/20",
-          !dragging() &&
-            "invisible scale-[0.95] cursor-move opacity-0",
-        )}
-      >
-        <div class="flex h-full items-center justify-center text-destructive">
-          <IconDelete class="size-8" />
-        </div>
-      </div>
     </>
   );
 }
