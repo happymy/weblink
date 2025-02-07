@@ -56,6 +56,7 @@ export class PeerSession {
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private status: PeerSessionStatus = "init";
+  private listenController: AbortController | null = null;
   constructor(
     sender: SignalingService,
     {
@@ -204,36 +205,12 @@ export class PeerSession {
             if (index !== -1) {
               this.channels.splice(index, 1);
             }
-
-            if (ev.channel.protocol === "message") {
-              this.messageChannel = null;
-            }
           },
-
           { once: true },
         );
 
         if (ev.channel.protocol === "message") {
-          ev.channel.addEventListener(
-            "message",
-            (ev) => {
-              const [error, message] = catchErrorSync(
-                () => JSON.parse(ev.data) as SessionMessage,
-              );
-              if (error) {
-                console.error(error);
-                return;
-              }
-              this.dispatchEvent("message", message);
-            },
-            { signal: this.controller?.signal },
-          );
-
-          this.messageChannel = ev.channel;
-          this.dispatchEvent(
-            "messagechannelchange",
-            "ready",
-          );
+          this.setupMessageChannel(ev.channel);
         }
 
         this.dispatchEvent("channel", ev.channel);
@@ -364,7 +341,6 @@ export class PeerSession {
     }
     this.dispatchEvent("peerconnectioninit", pc);
 
-    this.setStatus("created");
     this.popSignalCache();
 
     return pc;
@@ -633,6 +609,11 @@ export class PeerSession {
         `[PeerSession] session ${this.clientId} is closed, can not listen`,
       );
     }
+    if (this.sender.status === "closed") {
+      throw new Error(
+        `[PeerSession] signaling service is closed, can not listen`,
+      );
+    }
     const [err] = catchErrorSync(() =>
       this.initializeConnection(),
     );
@@ -641,6 +622,14 @@ export class PeerSession {
     }
 
     const listenController = new AbortController();
+    this.listenController = listenController;
+
+    listenController.signal.addEventListener(
+      "abort",
+      () => {
+        this.listenController = null;
+      },
+    );
 
     this.sender.addEventListener(
       "signal",
@@ -678,9 +667,16 @@ export class PeerSession {
         console.log(
           `[PeerSession] signaling service status change: ${ev.detail}`,
         );
+        if (ev.detail === "closed") {
+          console.log(
+            `[PeerSession] signaling service is closed, abort listen`,
+          );
+          listenController.abort();
+        }
       },
       { signal: listenController.signal },
     );
+    this.setStatus("created");
   }
 
   private removeStream() {
@@ -800,7 +796,10 @@ export class PeerSession {
         channel.label === label &&
         channel.protocol === protocol,
     );
-    if (existChannel) {
+    if (
+      existChannel &&
+      existChannel.readyState === "open"
+    ) {
       console.warn(
         `[PeerSession] channel ${label} with protocol ${protocol} already exists`,
       );
@@ -826,67 +825,66 @@ export class PeerSession {
         if (index !== -1) {
           this.channels.splice(index, 1);
         }
-
-        if (channel.protocol === "message") {
-          this.messageChannel = null;
-          this.dispatchEvent(
-            "messagechannelchange",
-            "closed",
-          );
-        }
       },
-      { once: true },
+      { signal: this.controller?.signal },
     );
 
     if (channel.protocol === "message") {
-      channel.addEventListener(
-        "message",
-        (ev) => {
-          const [error, message] = catchErrorSync(
-            () => JSON.parse(ev.data) as SessionMessage,
-          );
-          if (error) {
-            console.error(error);
-            return;
-          }
-          this.dispatchEvent("message", message);
-        },
-        { signal: this.controller?.signal },
-      );
-
-      this.messageChannel = channel;
-      channel.addEventListener(
-        "open",
-        () => {
-          this.dispatchEvent(
-            "messagechannelchange",
-            "ready",
-          );
-        },
-        { signal: this.controller?.signal },
-      );
-      channel.addEventListener(
-        "error",
-        (ev) => {
-          console.error(ev.error);
-        },
-        { signal: this.controller?.signal },
-      );
-      channel.addEventListener(
-        "close",
-        () => {
-          this.messageChannel = null;
-          this.dispatchEvent(
-            "messagechannelchange",
-            "closed",
-          );
-        },
-        { signal: this.controller?.signal },
-      );
+      this.setupMessageChannel(channel);
     }
 
     await waitChannel(channel);
     return channel;
+  }
+
+  private setupMessageChannel(channel: RTCDataChannel) {
+    if (this.messageChannel) {
+      this.messageChannel.close();
+      this.messageChannel = null;
+      this.dispatchEvent("messagechannelchange", "closed");
+    }
+    this.messageChannel = channel;
+    channel.addEventListener(
+      "message",
+      (ev) => {
+        const [error, message] = catchErrorSync(
+          () => JSON.parse(ev.data) as SessionMessage,
+        );
+        if (error) {
+          console.error(error);
+          return;
+        }
+
+        this.dispatchEvent("message", message);
+      },
+      { signal: this.controller?.signal },
+    );
+    channel.addEventListener(
+      "open",
+      () => {
+        this.dispatchEvent("messagechannelchange", "ready");
+      },
+      { signal: this.controller?.signal },
+    );
+    channel.addEventListener(
+      "error",
+      (ev) => {
+        console.error(ev.error);
+      },
+      { signal: this.controller?.signal },
+    );
+    channel.addEventListener(
+      "close",
+      () => {
+        if (this.messageChannel !== channel) return;
+        this.messageChannel = null;
+        this.dispatchEvent(
+          "messagechannelchange",
+          "closed",
+        );
+      },
+      { signal: this.controller?.signal },
+    );
   }
 
   sendMessage(message: SessionMessage) {
@@ -956,9 +954,8 @@ export class PeerSession {
     );
     this.disconnect();
     let err: Error | undefined;
-    [err] = catchErrorSync(() =>
-      this.initializeConnection(),
-    );
+    this.listenController?.abort();
+    [err] = catchErrorSync(() => this.listen());
     if (err) throw err;
     this.setStatus("reconnecting");
     [err] = await catchErrorAsync(this.connect());
@@ -969,6 +966,11 @@ export class PeerSession {
     if (this.status === "closed") {
       throw new Error(
         `[PeerSession] session ${this.clientId} is closed, can not connect`,
+      );
+    }
+    if (!this.listenController) {
+      throw new Error(
+        `[PeerSession] signaling service is not initialized, can not connect`,
       );
     }
     const pc = this.peerConnection;

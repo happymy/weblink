@@ -48,14 +48,15 @@ import {
   IconDownload,
   IconDownloading,
   IconFileCopy,
-  IconFileUpload,
-  IconInsertDriveFile,
+  IconUploadFile,
+  IconRestartAlt,
   IconPlayArrow,
   IconPreview,
-  IconRestore,
   IconResume,
   IconSchedule,
   IconShare,
+  IconDraft,
+  IconPause,
 } from "@/components/icons";
 import { sessionService } from "@/libs/services/session-service";
 import { t } from "@/i18n";
@@ -116,7 +117,8 @@ const Title = (
 const FileMessageCard: Component<FileMessageCardProps> = (
   props,
 ) => {
-  const { requestFile, resumeFile } = useWebRTC();
+  const { requestFile, resumeFile, pauseFile } =
+    useWebRTC();
 
   const transferer = createMemo<FileTransferer | null>(
     () => {
@@ -138,7 +140,9 @@ const FileMessageCard: Component<FileMessageCardProps> = (
         props.message.target
       ];
     }
-    return sessionService.clientViewData[props.message.client];
+    return sessionService.clientViewData[
+      props.message.client
+    ];
   });
 
   const cacheData = createMemo<FileMetaData | undefined>(
@@ -147,36 +151,40 @@ const FileMessageCard: Component<FileMessageCardProps> = (
         ? cacheManager.cacheInfo[props.message.fid]
         : undefined,
   );
-
-  const localStatus = createMemo(() => {
+  // sender local cache status
+  const localCacheStatus = createMemo(() => {
     if (cacheData()?.isComplete) return "complete";
     else if (cacheData()?.isMerging) return "merging";
-    else if (transferer()) return "transfering";
+    else return "incomplete";
+  });
+
+  const transferStatus = createMemo(() => {
+    if (transferer()) return "transfering";
     else return "paused";
+  });
+
+  const shouldShowPauseButton = createMemo(() => {
+    if (transferStatus() !== "transfering") return false;
+
+    return true;
   });
 
   const shouldShowResumeButton = createMemo(() => {
     if (!targetClientInfo()?.messageChannel) return false;
     if (props.message.status !== "received") return false;
     if (!props.message.transferStatus) return false;
-    if (isSender()) {
-      if (
-        ["complete", "transfering", "merging"].includes(
-          localStatus(),
-        ) &&
-        ["complete", "transfering"].includes(
-          props.message.transferStatus,
-        )
-      )
-        return false;
-    } else {
-      if (
-        ["complete", "transfering", "merging"].includes(
-          localStatus(),
-        )
-      )
-        return false;
-    }
+    if (props.message.transferStatus === "complete")
+      return false;
+    const isCacheComplete = [
+      "complete",
+      "merging",
+    ].includes(localCacheStatus());
+
+    const isTransfering =
+      transferStatus() === "transfering";
+    if (!isSender() && isCacheComplete) return false;
+    if (isTransfering) return false;
+
     return true;
   });
 
@@ -192,7 +200,8 @@ const FileMessageCard: Component<FileMessageCardProps> = (
       if (props.message.transferStatus !== "transfering")
         return undefined;
     } else {
-      if (localStatus() !== "transfering") return undefined;
+      if (transferStatus() !== "transfering")
+        return undefined;
     }
     return props.message.progress;
   });
@@ -235,7 +244,7 @@ const FileMessageCard: Component<FileMessageCardProps> = (
                           TransferMode.Send
                         }
                       >
-                        <IconFileUpload class="size-8" />
+                        <IconUploadFile class="size-8" />
                       </Match>
                     </Switch>
                   </div>
@@ -252,7 +261,7 @@ const FileMessageCard: Component<FileMessageCardProps> = (
                     fallback={
                       <div class="flex items-center gap-1">
                         <div>
-                          <IconInsertDriveFile class="size-8" />
+                          <IconDraft class="size-8" />
                         </div>
                         <p>{cache().fileName}</p>
                       </div>
@@ -429,8 +438,7 @@ const FileMessageCard: Component<FileMessageCardProps> = (
                 );
               }}
             </Show>
-
-            <Show when={localStatus() === "merging"}>
+            <Show when={localCacheStatus() === "merging"}>
               <div class="flex items-center gap-1">
                 <Spinner
                   size="sm"
@@ -460,6 +468,27 @@ const FileMessageCard: Component<FileMessageCardProps> = (
                     </Button>
                   </>
                 )}
+              </Show>
+              <Show when={shouldShowPauseButton()}>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => {
+                    if (isSender()) {
+                      pauseFile(
+                        cache().id,
+                        props.message.target,
+                      );
+                    } else {
+                      pauseFile(
+                        cache().id,
+                        props.message.client,
+                      );
+                    }
+                  }}
+                >
+                  <IconPause class="size-6" />
+                </Button>
               </Show>
 
               <Show when={shouldShowResumeButton()}>
@@ -501,7 +530,8 @@ export const MessageContent: Component<MessageCardProps> = (
     "onLoad",
   ]);
   const targetClientInfo = createMemo(
-    () => sessionService.clientViewData[local.message.target],
+    () =>
+      sessionService.clientViewData[local.message.target],
   );
   const session = createMemo(
     () => sessionService.sessions[local.message.target],
@@ -900,7 +930,7 @@ export const MessageContent: Component<MessageCardProps> = (
                   session().sendMessage(sessionMessage);
                 }}
               >
-                <IconRestore class="size-6" />
+                <IconRestartAlt class="size-6" />
               </Button>
             </Show>
           </div>

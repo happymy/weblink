@@ -714,6 +714,19 @@ class MessageStores {
     );
 
     transferer.addEventListener(
+      "close",
+      () => {
+        controller.abort();
+        setter((state) => {
+          if (state.transferStatus !== "complete") {
+            state.transferStatus = "paused";
+          }
+        });
+      },
+      { signal: controller.signal },
+    );
+
+    transferer.addEventListener(
       "error",
       (event: CustomEvent<Error>) => {
         console.error(event.detail);

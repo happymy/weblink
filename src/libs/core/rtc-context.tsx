@@ -103,6 +103,7 @@ export interface WebRTCContextProps {
   ) => Promise<void>;
   shareFile: (fileId: FileID, target: ClientID) => void;
   resumeFile: (fileId: FileID, target: ClientID) => void;
+  pauseFile: (fileId: FileID, target: ClientID) => void;
   roomStatus: RoomStatus;
 }
 
@@ -771,6 +772,18 @@ export const WebRTCProvider: Component<
     session.sendMessage(message);
   };
 
+  const pauseFile = async (
+    fileId: FileID,
+    target: ClientID,
+  ) => {
+    const session = sessionService.sessions[target];
+    if (!session) return;
+    const transferer =
+      transferManager.getTransferer(fileId);
+    if (!transferer) return;
+    await transferer.pause(true);
+  };
+
   return (
     <WebRTCContext.Provider
       value={{
@@ -781,6 +794,7 @@ export const WebRTCProvider: Component<
         sendFile,
         requestFile,
         resumeFile,
+        pauseFile,
         roomStatus,
       }}
     >

@@ -26,7 +26,7 @@ import {
 import CompressWorker from "@/libs/workers/chunk-compress?worker";
 import UncompressWorker from "@/libs/workers/chunk-uncompress?worker";
 import { CompressionLevel } from "@/options";
-import { catchErrorAsync } from "../catch";
+import { catchErrorAsync, catchErrorSync } from "../catch";
 
 export enum TransferMode {
   Send = 1,
@@ -57,11 +57,16 @@ export interface CompleteMessage
   type: "complete";
 }
 
+export interface PauseMessage extends BaseTransferMessage {
+  type: "pause";
+}
+
 export type TransferMessage =
   | RequestContentMessage
   | RequestHeadMessage
   | HeadMessage
-  | CompleteMessage;
+  | CompleteMessage
+  | PauseMessage;
 
 interface ReceiveData {
   receiveBytes: number;
@@ -466,8 +471,9 @@ export class FileTransferer {
     }
   }
 
-  private async startChecking(interval: number = 5000) {
+  private async startChecking(delay: number = 5000) {
     const checking = async () => {
+      if (this.closed) return;
       if (!this.receivedData) {
         return;
       }
@@ -498,11 +504,14 @@ export class FileTransferer {
       }
     };
     window.clearInterval(this.timer);
-    this.timer = window.setInterval(checking, interval);
+    this.timer = window.setInterval(checking, delay);
   }
 
   private triggerReceiveComplete() {
-    if (this.mode === TransferMode.Send) return false;
+    if (this.mode === TransferMode.Send) {
+      this.dispatchEvent("complete", undefined);
+      return true;
+    }
     if (!this.receivedData) return false;
 
     const info = this.info;
@@ -659,7 +668,14 @@ export class FileTransferer {
           return this.close();
         }
 
-        channel.send(packet);
+        const [err] = catchErrorSync(() =>
+          channel.send(packet),
+        );
+        if (err) {
+          if (this.closed) return;
+          console.error(err);
+          this.close();
+        }
       }
 
       this.sendData?.indexes.add(chunkIndex);
@@ -717,7 +733,13 @@ export class FileTransferer {
       }
     }
     await queue;
-    await this.waitBufferedAmountLowThreshold(0);
+
+    const [waitError] = await catchErrorAsync(
+      this.waitBufferedAmountLowThreshold(0),
+    );
+    if (waitError) {
+      return this.close();
+    }
     const [error, channel] = await catchErrorAsync(
       this.getAnyAvailableChannel(),
     );
@@ -729,7 +751,6 @@ export class FileTransferer {
         type: "complete",
       } satisfies CompleteMessage),
     );
-    this.isComplete = true;
   }
 
   // handle receive message
@@ -741,7 +762,9 @@ export class FileTransferer {
           const message = JSON.parse(
             data,
           ) as TransferMessage;
-          if (message.type === "complete") {
+          if (message.type === "pause") {
+            this.pause(false);
+          } else if (message.type === "complete") {
             if (this.triggerReceiveComplete()) {
               window.clearInterval(this.timer);
             }
@@ -777,7 +800,9 @@ export class FileTransferer {
           this.sendFile(message.ranges);
         } else if (message.type === "complete") {
           this.isComplete = true;
-          this.dispatchEvent("complete", undefined);
+          this.close();
+        } else if (message.type === "pause") {
+          this.pause(false);
         }
       }
     } catch (error) {
@@ -787,12 +812,36 @@ export class FileTransferer {
     }
   }
 
+  public async pause(notify: boolean = false) {
+    if (this.closed) return;
+    if (notify) {
+      const [error, channel] = await catchErrorAsync(
+        this.getAnyAvailableChannel(),
+      );
+      if (error) {
+        return this.close();
+      }
+      channel.send(
+        JSON.stringify({
+          type: "pause",
+        } satisfies PauseMessage),
+      );
+      await waitBufferedAmountLowThreshold(channel, 0);
+    }
+    this.close();
+  }
+
   public close() {
     if (this.closed) return;
-    this.dispatchEvent("close", undefined);
+    if (this.isComplete) {
+      this.dispatchEvent("complete", undefined);
+    } else {
+      this.dispatchEvent("close", undefined);
+    }
     this.unzipWorker?.terminate();
     this.compressWorker?.terminate();
-    this.channels.forEach((channel) => channel.close());
+    this.timer && window.clearInterval(this.timer);
+    this.closed = true;
   }
 }
 

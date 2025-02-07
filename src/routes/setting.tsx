@@ -52,7 +52,7 @@ import {
   IconClose,
   IconDelete,
   IconExpandAll,
-  IconFileUpload,
+  IconUploadFile,
   IconInfo,
 } from "@/components/icons";
 import { Separator } from "@/components/ui/seprartor";
@@ -205,7 +205,7 @@ export default function Settings() {
                     >
                       {event ? (
                         isFile ? (
-                          <IconFileUpload class="size-12" />
+                          <IconUploadFile class="size-12" />
                         ) : (
                           <IconClose class="size-12" />
                         )

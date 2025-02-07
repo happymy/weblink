@@ -8,7 +8,6 @@ import {
 } from "../core/file-transferer";
 import { FileID } from "../core/type";
 import { ChunkCache } from "../cache/chunk-cache";
-import { waitBufferedAmountLowThreshold } from "../core/utils/channel";
 import { appOptions } from "@/options";
 import { FileMetaData } from "../cache";
 
@@ -94,7 +93,6 @@ class TransfererFactory {
         this.destroyTransfer(transferer.id);
 
         controller.abort();
-        
       },
       { once: true, signal: controller.signal },
     );
@@ -121,10 +119,9 @@ class TransfererFactory {
         controller.abort();
         clearInterval(flushInterval);
         for (const channel of transferer.channels) {
-          waitBufferedAmountLowThreshold(channel, 0).then(
-            () => channel.close(),
-          );
+          channel.close();
         }
+        this.destroyTransfer(transferer.id);
       },
       {
         once: true,

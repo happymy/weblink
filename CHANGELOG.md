@@ -2,11 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.11.0] - 2025-02-05
+## [0.11.1] - 2025-02-05
 
 ### New Features
 
 - Add grid layout, support drag and resize 添加网格布局，支持拖动和调整大小
+
+- Add pause file transfer feature 添加暂停文件传输功能
 
 ## [0.10.6] - 2025-01-26
 

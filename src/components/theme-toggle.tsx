@@ -1,8 +1,4 @@
 import { useColorMode } from "@kobalte/core";
-
-import IconComputer from "@material-design-icons/svg/outlined/computer.svg?component-solid";
-import IconLightMode from "@material-design-icons/svg/outlined/light_mode.svg?component-solid";
-import IconDarkMode from "@material-design-icons/svg/outlined/dark_mode.svg?component-solid";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +7,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { t } from "@/i18n";
+import {
+  IconComputer,
+  IconDarkMode,
+  IconLightMode,
+} from "./icons";
 
 export function ThemeToggle() {
   const { setColorMode } = useColorMode();

@@ -30,8 +30,7 @@ import {
 } from "@/components/ui/checkbox";
 import {
   IconForward,
-  IconInsertDriveFile,
-  IconShare,
+  IconDraft,
 } from "./icons";
 import { useWebRTC } from "@/libs/core/rtc-context";
 import { toast } from "solid-sonner";
@@ -183,7 +182,7 @@ export const createForwardDialog = () => {
                 </Match>
                 <Match when={data.type === "cache"}>
                   <div class="flex items-center gap-1">
-                    <IconInsertDriveFile class="inline size-4" />
+                    <IconDraft class="inline size-4" />
                     <span class="text-sm">
                       {(data.data as FileMetaData).fileName}
                     </span>
@@ -191,7 +190,7 @@ export const createForwardDialog = () => {
                 </Match>
                 <Match when={data.type === "file"}>
                   <div class="flex items-center gap-1">
-                    <IconInsertDriveFile class="inline size-4" />
+                    <IconDraft class="inline size-4" />
                     <span class="text-sm">
                       {(data.data as File).name}
                     </span>
