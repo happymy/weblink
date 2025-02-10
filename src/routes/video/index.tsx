@@ -592,29 +592,43 @@ const LocalToolbar = (props: {
   });
 
   const [microphoneMuted, setMicrophoneMuted] =
-    createSignal(false);
+    createSignal();
   createEffect(() => {
     const track = microphoneAudioTrack();
     if (track) {
-      track.enabled = !microphoneMuted();
+      if (microphoneMuted() === undefined) {
+        setMicrophoneMuted(!track.enabled);
+      } else {
+        track.enabled = !microphoneMuted();
+      }
+
     }
   });
 
-  const [speakerMuted, setSpeakerMuted] =
-    createSignal(false);
+  const [speakerMuted, setSpeakerMuted] = createSignal();
   createEffect(() => {
     const track = speakerAudioTrack();
     if (track) {
-      track.enabled = !speakerMuted();
+      if (speakerMuted() === undefined) {
+        setSpeakerMuted(!track.enabled);
+      } else {
+        track.enabled = !speakerMuted();
+      }
+
     }
   });
 
-  const [videoStop, setVideoStop] = createSignal(false);
+  const [videoMuted, setVideoMuted] = createSignal();
   createEffect(() => {
     const track = videoTrack();
     if (track) {
-      track.enabled = !videoStop();
+      if (videoMuted() === undefined) {
+        setVideoMuted(!track.enabled);
+      } else {
+        track.enabled = !videoMuted();
+      }
     }
+
   });
 
   return (
@@ -690,18 +704,20 @@ const LocalToolbar = (props: {
       <Show when={videoTrack()}>
         <FlexButton
           size="sm"
-          onClick={() => setVideoStop(!videoStop())}
-          variant={videoStop() ? "default" : "secondary"}
+          onClick={() => setVideoMuted(!videoMuted())}
+          variant={videoMuted() ? "default" : "secondary"}
           icon={
             <Dynamic
               component={
-                videoStop() ? IconVideoCamOff : IconVideoCam
+                videoMuted()
+                  ? IconVideoCamOff
+                  : IconVideoCam
               }
               class="size-4"
             />
           }
         >
-          {videoStop()
+          {videoMuted()
             ? t("common.action.continue")
             : t("common.action.pause")}
         </FlexButton>

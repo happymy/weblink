@@ -71,7 +71,7 @@ export const [speakerConstraints, setSpeakerConstraints] =
           : undefined,
       echoCancellation: false,
       noiseSuppression: false,
-      autoGainControl: false,
+      autoGainControl: true,
       latency: { ideal: 0, max: 0.01 },
     }),
     {
@@ -293,6 +293,7 @@ export const MicrophoneTrackConstraints = (props: {
       autoGainControl: false,
       voiceIsolation: false,
     });
+
   createEffect(() => {
     const track = props.track;
     const constraints = track.getConstraints();
@@ -417,6 +418,20 @@ export const VideoTrackConstraints = (props: {
     return props.track.getCapabilities();
   });
 
+  const [enableConstraints, setEnableConstraints] =
+    createStore<VideoConstraints>({
+      frameRate: { max: 60 },
+    });
+
+  createEffect(() => {
+    const track = props.track;
+    const constraints = track.getConstraints();
+    setEnableConstraints(
+      "frameRate",
+      constraints.frameRate,
+    );
+  });
+
   const { debouncedFn: applyConstraints } =
     createDebounceAsync(
       async (
@@ -446,43 +461,37 @@ export const VideoTrackConstraints = (props: {
   return (
     <div class="flex flex-col gap-2">
       <Show when={capabilities().frameRate}>
-        {(frameRate) => (
-          <Slider
-            minValue={frameRate().min}
-            maxValue={frameRate().max}
-            value={[
-              typeof frameRate() === "number"
-                ? (frameRate() as number)
-                : (frameRate().max ?? 60),
-            ]}
-            onChange={(value) => {
-              setVideoConstraints("frameRate", {
-                max: value[0],
-              });
-              applyConstraints("frameRate", {
-                max: value[0],
-              });
-            }}
-            getValueLabel={({ values }) =>
-              `${values[0]} FPS`
-            }
-            class="gap-2"
-          >
-            <div class="flex w-full justify-between">
-              <SliderLabel>
-                {t(
-                  "common.media_selection_dialog.constraints.max_frame_rate",
-                )}
-              </SliderLabel>
-              <SliderValueLabel />
-            </div>
-            <SliderTrack>
-              <SliderFill />
-              <SliderThumb />
-              <SliderThumb />
-            </SliderTrack>
-          </Slider>
-        )}
+        <Slider
+          minValue={1}
+          maxValue={120}
+          value={[
+            typeof enableConstraints.frameRate === "number"
+              ? enableConstraints.frameRate
+              : (enableConstraints.frameRate?.max ?? 60),
+          ]}
+          onChange={(value) => {
+            setEnableConstraints("frameRate", value[0]);
+            applyConstraints("frameRate", {
+              max: value[0],
+            });
+          }}
+          getValueLabel={({ values }) => `${values[0]} FPS`}
+          class="gap-2"
+        >
+          <div class="flex w-full justify-between">
+            <SliderLabel>
+              {t(
+                "common.media_selection_dialog.constraints.max_frame_rate",
+              )}
+            </SliderLabel>
+            <SliderValueLabel />
+          </div>
+          <SliderTrack>
+            <SliderFill />
+            <SliderThumb />
+            <SliderThumb />
+          </SliderTrack>
+        </Slider>
       </Show>
     </div>
   );

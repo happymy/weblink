@@ -15,7 +15,6 @@ import {
   useContext,
   createSignal,
 } from "solid-js";
-import { createStore } from "solid-js/store";
 import { ClientAvatar } from "./client-avatar";
 import { createMediaTracks } from "@/libs/hooks/tracks";
 
