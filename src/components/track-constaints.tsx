@@ -35,6 +35,13 @@ const getSupportedConstraints = () => {
 
 const constraints = getSupportedConstraints();
 
+type AudioConstraints = MediaTrackConstraintSet & {
+  suppressLocalAudioPlayback?: boolean;
+  latency?: ConstrainDouble;
+};
+
+type VideoConstraints = MediaTrackConstraintSet & {};
+
 export const [
   microphoneConstraints,
   setMicrophoneConstraints,
@@ -57,11 +64,15 @@ export const [
 
 export const [speakerConstraints, setSpeakerConstraints] =
   makePersisted(
-    createStore({
+    createStore<AudioConstraints>({
       suppressLocalAudioPlayback:
         "suppressLocalAudioPlayback" in constraints
           ? false
           : undefined,
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      latency: { ideal: 0, max: 0.01 },
     }),
     {
       name: "speakerConstraints",
@@ -71,7 +82,7 @@ export const [speakerConstraints, setSpeakerConstraints] =
 
 export const [videoConstraints, setVideoConstraints] =
   makePersisted(
-    createStore<MediaTrackConstraintSet>({
+    createStore<VideoConstraints>({
       frameRate: { max: 60 },
     }),
     {
@@ -179,7 +190,6 @@ export const SpeakerTrackConstraints = (props: {
 }) => {
   const capabilities = createMemo(() => {
     const capabilities = props.track.getCapabilities();
-    console.log(capabilities);
     return {
       suppressLocalAudioPlayback:
         "suppressLocalAudioPlayback" in capabilities,
@@ -188,6 +198,9 @@ export const SpeakerTrackConstraints = (props: {
   const [enableConstraints, setEnableConstraints] =
     createStore({
       suppressLocalAudioPlayback: false,
+      noiseSuppression: false,
+      echoCancellation: false,
+      autoGainControl: false,
     });
   createEffect(() => {
     const track = props.track;
@@ -195,6 +208,18 @@ export const SpeakerTrackConstraints = (props: {
     setEnableConstraints(
       "suppressLocalAudioPlayback",
       !!(constraints as any)?.suppressLocalAudioPlayback,
+    );
+    setEnableConstraints(
+      "noiseSuppression",
+      !!constraints.noiseSuppression,
+    );
+    setEnableConstraints(
+      "echoCancellation",
+      !!constraints.echoCancellation,
+    );
+    setEnableConstraints(
+      "autoGainControl",
+      !!constraints.autoGainControl,
     );
   });
   const applyConstraints = async (
@@ -389,10 +414,7 @@ export const VideoTrackConstraints = (props: {
   track: MediaStreamTrack;
 }) => {
   const capabilities = createMemo(() => {
-    const capabilities = props.track.getCapabilities();
-    return {
-      frameRate: "frameRate" in capabilities,
-    };
+    return props.track.getCapabilities();
   });
 
   const { debouncedFn: applyConstraints } =
@@ -424,39 +446,43 @@ export const VideoTrackConstraints = (props: {
   return (
     <div class="flex flex-col gap-2">
       <Show when={capabilities().frameRate}>
-        <Slider
-          minValue={1}
-          maxValue={120}
-          value={[
-            typeof videoConstraints.frameRate === "number"
-              ? videoConstraints.frameRate
-              : (videoConstraints.frameRate?.max ?? 60),
-          ]}
-          onChange={(value) => {
-            setVideoConstraints("frameRate", {
-              max: value[0],
-            });
-            applyConstraints("frameRate", {
-              max: value[0],
-            });
-          }}
-          getValueLabel={({ values }) => `${values[0]} FPS`}
-          class="gap-2"
-        >
-          <div class="flex w-full justify-between">
-            <SliderLabel>
-              {t(
-                "common.media_selection_dialog.constraints.max_frame_rate",
-              )}
-            </SliderLabel>
-            <SliderValueLabel />
-          </div>
-          <SliderTrack>
-            <SliderFill />
-            <SliderThumb />
-            <SliderThumb />
-          </SliderTrack>
-        </Slider>
+        {(frameRate) => (
+          <Slider
+            minValue={frameRate().min}
+            maxValue={frameRate().max}
+            value={[
+              typeof frameRate() === "number"
+                ? (frameRate() as number)
+                : (frameRate().max ?? 60),
+            ]}
+            onChange={(value) => {
+              setVideoConstraints("frameRate", {
+                max: value[0],
+              });
+              applyConstraints("frameRate", {
+                max: value[0],
+              });
+            }}
+            getValueLabel={({ values }) =>
+              `${values[0]} FPS`
+            }
+            class="gap-2"
+          >
+            <div class="flex w-full justify-between">
+              <SliderLabel>
+                {t(
+                  "common.media_selection_dialog.constraints.max_frame_rate",
+                )}
+              </SliderLabel>
+              <SliderValueLabel />
+            </div>
+            <SliderTrack>
+              <SliderFill />
+              <SliderThumb />
+              <SliderThumb />
+            </SliderTrack>
+          </Slider>
+        )}
       </Show>
     </div>
   );
@@ -467,7 +493,7 @@ export const createPresetSpeakerTrackConstraintsDialog =
     return createDialog({
       title: () => t("common.action.settings"),
       content: () => (
-        <div class="flex flex-col gap-2 p-2">
+        <div class="flex flex-col gap-2">
           <Switch
             disabled={
               speakerConstraints.suppressLocalAudioPlayback ===
@@ -475,18 +501,94 @@ export const createPresetSpeakerTrackConstraintsDialog =
             }
             class="flex items-center justify-between gap-2"
             checked={
-              speakerConstraints.suppressLocalAudioPlayback
+              speakerConstraints.suppressLocalAudioPlayback ===
+              true
             }
-            onChange={(value) => {
+            onChange={(value) =>
               setSpeakerConstraints(
                 "suppressLocalAudioPlayback",
                 value,
-              );
-            }}
+              )
+            }
           >
             <SwitchLabel>
               {t(
                 "common.media_selection_dialog.constraints.suppress_local_audio_playback",
+              )}
+            </SwitchLabel>
+            <SwitchControl>
+              <SwitchThumb />
+            </SwitchControl>
+          </Switch>
+          <Switch
+            disabled={
+              speakerConstraints.autoGainControl ===
+              undefined
+            }
+            class="flex items-center justify-between gap-2"
+            checked={
+              speakerConstraints.autoGainControl === true
+            }
+            onChange={(value) =>
+              setSpeakerConstraints(
+                "autoGainControl",
+                value,
+              )
+            }
+          >
+            <SwitchLabel>
+              {t(
+                "common.media_selection_dialog.constraints.auto_gain_control",
+              )}
+            </SwitchLabel>
+            <SwitchControl>
+              <SwitchThumb />
+            </SwitchControl>
+          </Switch>
+          <Switch
+            disabled={
+              speakerConstraints.echoCancellation ===
+              undefined
+            }
+            class="flex items-center justify-between gap-2"
+            checked={
+              speakerConstraints.echoCancellation === true
+            }
+            onChange={(value) =>
+              setSpeakerConstraints(
+                "echoCancellation",
+                value,
+              )
+            }
+          >
+            <SwitchLabel>
+              {t(
+                "common.media_selection_dialog.constraints.echo_cancellation",
+              )}
+            </SwitchLabel>
+            <SwitchControl>
+              <SwitchThumb />
+            </SwitchControl>
+          </Switch>
+          <Switch
+            disabled={
+              speakerConstraints.noiseSuppression ===
+              undefined
+            }
+            class="flex items-center justify-between gap-2"
+            checked={
+              speakerConstraints.noiseSuppression === true
+            }
+            onChange={(value) =>
+              setSpeakerConstraints(
+                "noiseSuppression",
+                value,
+              )
+            }
+          >
+            <SwitchLabel>
+              {t(
+                "common.media_selection_dialog.constraints.noise_suppression",
               )}
             </SwitchLabel>
             <SwitchControl>
