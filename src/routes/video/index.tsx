@@ -35,14 +35,8 @@ import {
   IconViewCompactAlt,
   IconVolumeOff,
   IconVolumeUp,
-  IconWindow,
 } from "@/components/icons";
-import {
-  Tabs,
-  TabsIndicator,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/libs/cn";
 import { ClientInfo } from "@/libs/core/type";
 import { createIsMobile } from "@/libs/hooks/create-mobile";
@@ -70,7 +64,6 @@ import {
   GridStack,
   GridStackRef,
   layout,
-  setLayout,
 } from "@/libs/gridstack";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import {
@@ -128,7 +121,9 @@ export default function Video() {
         cellHeight: gridCellHeight(),
         column: gridColumn(),
         animate: true,
+        margin: 1,
         minRow: 1,
+        float: true,
         resizable: {
           handles: "all",
         },
@@ -169,7 +164,7 @@ export default function Video() {
           "fixed bottom-8 left-1/2 size-28 -translate-x-1/2",
           "rounded-xl border-2 border-dashed border-destructive",
           "bg-destructive/10 transition-all hover:border-destructive/80",
-          `visible touch-manipulation opacity-100
+          `visible z-10 touch-manipulation opacity-100
           hover:bg-destructive/20`,
           !dragging() &&
             "invisible scale-[0.95] cursor-move opacity-0",
@@ -271,20 +266,6 @@ export default function Video() {
                     {t("common.action.compact_layout")}
                   </TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    as={Button}
-                    size="icon"
-                    class="size-8"
-                    variant="secondary"
-                    onClick={() => gridRef().resetLayout()}
-                  >
-                    <IconResetWrench class="size-4" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {t("common.action.reset_layout")}
-                  </TooltipContent>
-                </Tooltip>
               </>
             )}
           </Show>
@@ -318,6 +299,7 @@ export default function Video() {
         </div>
 
         <GridStack
+          class="flex-1"
           ref={setGridRef}
           options={gridOptions()}
           onDragStatusChange={(event, item, drag) => {
@@ -327,11 +309,6 @@ export default function Video() {
             items.forEach((item) => {
               const clientId = item.el?.id;
               if (clientId) {
-                setLayout((prev) => {
-                  const newLayout = { ...prev };
-                  delete newLayout[clientId];
-                  return newLayout;
-                });
                 setRemovedClientIds((prev) => [
                   ...prev,
                   clientId,
@@ -341,10 +318,8 @@ export default function Video() {
           }}
         >
           <GridItem
-            w={layout()?.[clientProfile.clientId]?.w ?? 6}
-            h={layout()?.[clientProfile.clientId]?.h ?? 6}
-            x={layout()?.[clientProfile.clientId]?.x}
-            y={layout()?.[clientProfile.clientId]?.y}
+            w={6}
+            h={6}
             id={clientProfile.clientId}
             noRemovable
           >
@@ -373,23 +348,17 @@ export default function Video() {
           <For
             each={Object.values(
               sessionService.clientViewData,
-            )
-              .filter(
-                (client) => client.stream !== undefined,
-              )
-              .filter(
-                (client) =>
-                  !removedClientIds().includes(
-                    client.clientId,
-                  ),
-              )}
+            ).filter(
+              (client) =>
+                !removedClientIds().includes(
+                  client.clientId,
+                ),
+            )}
           >
             {(client) => (
               <GridItem
-                w={layout()?.[client.clientId]?.w ?? 6}
-                h={layout()?.[client.clientId]?.h ?? 6}
-                x={layout()?.[client.clientId]?.x}
-                y={layout()?.[client.clientId]?.y}
+                w={client.stream !== undefined ? 6 : 3}
+                h={client.stream !== undefined ? 6 : 3}
                 id={client.clientId}
               >
                 <GridItemContent class="relative rounded-lg bg-muted shadow-lg">
@@ -601,7 +570,6 @@ const LocalToolbar = (props: {
       } else {
         track.enabled = !microphoneMuted();
       }
-
     }
   });
 
@@ -614,7 +582,6 @@ const LocalToolbar = (props: {
       } else {
         track.enabled = !speakerMuted();
       }
-
     }
   });
 
@@ -628,7 +595,6 @@ const LocalToolbar = (props: {
         track.enabled = !videoMuted();
       }
     }
-
   });
 
   return (

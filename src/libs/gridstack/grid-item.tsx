@@ -9,10 +9,10 @@ import {
   splitProps,
 } from "solid-js";
 import { useGridStackContext } from "./grid-context";
-import type { GridStackNode } from "gridstack";
+import type { GridStackNode, GridStackPosition } from "gridstack";
 import { Dynamic } from "solid-js/web";
 import clsx from "clsx";
-
+import { layout } from "./grid";
 type GridItemProps<
   T extends keyof JSX.IntrinsicElements = "div",
 > = {
@@ -85,31 +85,38 @@ export function GridItem(props: GridItemProps) {
     return options;
   });
 
+  const [savedLayout, setSavedLayout] = createSignal<GridStackPosition | undefined>(undefined);
+
+
+
   onMount(() => {
     const element = elementRef();
-    if (!element) {
-      return;
+    if (!element) return;
+    const savedLayout = layout[element.id];
+    if (savedLayout) {
+      delete layout[element.id];
+      setSavedLayout(savedLayout);
     }
 
     const widget = ctx.grid.makeWidget(element);
 
-    ctx.defaultLayout[widget.id] = {
-      x: widget.gridstackNode?.x,
-      y: widget.gridstackNode?.y,
-      w: widget.gridstackNode?.w,
-      h: widget.gridstackNode?.h,
-    };
-
     createEffect(() => {
       const options = gridItemOptions();
-
       ctx.grid.update(element, options);
     });
 
     onCleanup(() => {
-      delete ctx.defaultLayout[element.id];
+      layout[element.id] = {
+        x: widget.gridstackNode?.x,
+        y: widget.gridstackNode?.y,
+        w: widget.gridstackNode?.w,
+        h: widget.gridstackNode?.h,
+      };
+      ctx.grid.removeWidget(widget, false, false);
     });
   });
+
+  
 
   return (
     <Dynamic
@@ -120,10 +127,10 @@ export function GridItem(props: GridItemProps) {
         local.noRemovable && "grid-stack-non-removable",
       )}
       ref={(ref) => setElementRef(ref)}
-      gs-x={local.x}
-      gs-y={local.y}
-      gs-w={local.w}
-      gs-h={local.h}
+      gs-x={savedLayout()?.x ?? local.x}
+      gs-y={savedLayout()?.y ?? local.y}
+      gs-w={savedLayout()?.w ?? local.w}
+      gs-h={savedLayout()?.h ?? local.h}
       gs-autoPosition={local.autoPosition}
       gs-minW={local.minW}
       gs-maxW={local.maxW}
@@ -148,7 +155,10 @@ export const GridItemContent = (
   ]);
   return (
     <div
-      class={clsx(local.class, "grid-stack-item-content touch-manipulation")}
+      class={clsx(
+        local.class,
+        "grid-stack-item-content touch-manipulation",
+      )}
       {...other}
     >
       {local.children}

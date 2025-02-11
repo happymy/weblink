@@ -7,10 +7,6 @@ import { createContext, useContext } from "solid-js";
 
 export const GridStackContext = createContext<{
   grid: GridStackC;
-  defaultLayout: Record<
-    GridItemHTMLElement["id"],
-    GridStackPosition
-  >;
 }>();
 
 export function useGridStackContext() {

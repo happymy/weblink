@@ -85,6 +85,12 @@ export const VideoDisplay = (
     }
   });
 
+  createEffect(() => {
+    if (!videoStream()) {
+      setVideoRef(null);
+    }
+  });
+
   return (
     <VideoContext.Provider
       value={{ videoRef, videoTrack, audioTracks }}

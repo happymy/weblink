@@ -15,14 +15,12 @@ import {
   GridStackOptions,
   GridStackPosition,
 } from "gridstack";
-
 import { GridStackContext } from "./grid-context";
 import { Dynamic } from "solid-js/web";
 import clsx from "clsx";
 
 export type GridStackRef = {
   compact: () => void;
-  resetLayout: () => void;
 } & HTMLElement;
 
 type GridStackProps<
@@ -43,9 +41,7 @@ type GridStackProps<
   ) => void;
 };
 
-export const [layout, setLayout] = createSignal<
-  Record<string, GridStackPosition>
->({});
+export const layout: Record<string, GridStackPosition> = {};
 
 export function GridStack(props: GridStackProps) {
   const [local, other] = splitProps(props, [
@@ -70,55 +66,8 @@ export function GridStack(props: GridStackProps) {
         g.compact();
       }
     };
-    el.resetLayout = () => {
-      const g = grid();
-      if (g) {
-        g.getGridItems().forEach((item) => {
-          const layout = defaultLayout[item.id];
-          if (layout && item.gridstackNode) {
-            item.setAttribute(
-              "gs-w",
-              layout.w?.toString() ?? "",
-            );
-            item.setAttribute(
-              "gs-h",
-              layout.h?.toString() ?? "",
-            );
-            item.gridstackNode.w = layout.w;
-            item.gridstackNode.h = layout.h;
-            item.gridstackNode.autoPosition = true;
-          }
-        });
-        g.compact();
-      }
-    };
     return el;
   });
-
-  const defaultLayout: Record<
-    GridItemHTMLElement["id"],
-    GridStackPosition
-  > = {};
-
-  const saveLayout = () => {
-    const g = grid();
-
-    if (!g) {
-      return;
-    }
-
-    g.getGridItems().forEach((item) => {
-      setLayout((prev) => ({
-        ...prev,
-        [item.id]: {
-          x: item.gridstackNode?.x,
-          y: item.gridstackNode?.y,
-          w: item.gridstackNode?.w,
-          h: item.gridstackNode?.h,
-        },
-      }));
-    });
-  };
 
   onMount(() => {
     const el = element();
@@ -131,6 +80,11 @@ export function GridStack(props: GridStackProps) {
 
       g.on("removed", (event, items) => {
         props.onRemove?.(event, items);
+        items.forEach((item) => {
+          if (item.id) {
+            delete layout[item.id];
+          }
+        });
       });
 
       g.on("dragstart", (event, item) => {
@@ -138,7 +92,11 @@ export function GridStack(props: GridStackProps) {
         const isRemovable = item?.classList.contains(
           "grid-stack-non-removable",
         );
-        props.onDragStatusChange?.(event, item, !isRemovable);
+        props.onDragStatusChange?.(
+          event,
+          item,
+          !isRemovable,
+        );
       });
 
       g.on("dragstop", (event, item) => {
@@ -159,9 +117,7 @@ export function GridStack(props: GridStackProps) {
       onCleanup(() => {
         const g = grid();
         if (g) {
-          saveLayout();
-          g.off("change");
-          g.destroy();
+          g.destroy(false);
           setGrid(undefined);
         }
       });
@@ -180,7 +136,6 @@ export function GridStack(props: GridStackProps) {
           <GridStackContext.Provider
             value={{
               grid: grid(),
-              defaultLayout: defaultLayout,
             }}
           >
             {props.children}

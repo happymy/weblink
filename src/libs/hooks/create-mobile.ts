@@ -17,14 +17,20 @@ export function createIsMobile() {
     const mql = window.matchMedia(
       `(max-width: ${MOBILE_BREAKPOINT - 1}px)`,
     );
+    
     const onChange = () => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     };
+
     mql.addEventListener("change", onChange);
+    
+    window.addEventListener("orientationchange", onChange);
+    
     setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
 
     onCleanup(() => {
       mql.removeEventListener("change", onChange);
+      window.removeEventListener("orientationchange", onChange);
     });
   }, []);
 
