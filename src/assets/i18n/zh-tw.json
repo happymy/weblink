@@ -212,7 +212,12 @@
       "screen": "螢幕",
       "camera": "攝影機"
     },
-    "no_stream": "沒有串流"
+    "no_stream": "沒有串流",
+    "float": "浮動",
+    "global_mute": "全局靜音",
+    "global_unmute": "全局取消靜音",
+    "reset_layout": "重置佈局",
+    "compact_layout": "緊湊佈局"
   },
   "browser_unsupported": {
     "title": "抱歉，您的瀏覽器不受支援",
@@ -371,10 +376,6 @@
       "stop": "停止",
       "pause": "暫停",
       "continue": "繼續",
-      "global_mute": "全局靜音",
-      "global_unmute": "全局取消靜音",
-      "reset_layout": "重置佈局",
-      "compact_layout": "緊湊佈局",
       "restore": "恢復"
     },
     "clipboard_history": {

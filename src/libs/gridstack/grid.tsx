@@ -111,6 +111,9 @@ export function GridStack(props: GridStackProps) {
           if (typeof props.options.column === "number") {
             g.column(props.options.column);
           }
+          if (props.options.float !== undefined) {
+            g.float(props.options.float);
+          }
         }
       });
 

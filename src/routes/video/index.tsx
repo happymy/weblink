@@ -5,7 +5,6 @@ import {
   For,
   onCleanup,
   onMount,
-  Ref,
   Show,
   untrack,
 } from "solid-js";
@@ -64,6 +63,7 @@ import {
   GridStack,
   GridStackRef,
   layout,
+  SavedGridItem,
 } from "@/libs/gridstack";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import {
@@ -81,6 +81,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Switch,
+  SwitchControl,
+  SwitchThumb,
+} from "@/components/ui/switch";
+import { makePersisted } from "@solid-primitives/storage";
 
 const [removedClientIds, setRemovedClientIds] =
   createSignal<string[]>([]);
@@ -115,20 +121,34 @@ export default function Video() {
     return isMobile() ? 1 : 12;
   });
 
+  const [float, setFloat] = makePersisted(
+    createSignal(false),
+    {
+      storage: sessionStorage,
+      name: "video_float",
+    },
+  );
+
   const gridOptions = createMemo(
     () =>
       ({
+        draggable: {
+          handle: ".grid-item-content",
+          appendTo: "body",
+          scroll: false,
+        },
         cellHeight: gridCellHeight(),
         column: gridColumn(),
         animate: true,
         margin: 1,
         minRow: 1,
-        float: true,
+        float: float(),
         resizable: {
           handles: "all",
         },
         acceptWidgets: true,
         removable: "[data-gs-removal-zone]",
+        styleInHead: true,
       }) satisfies GridStackOptions,
   );
 
@@ -145,17 +165,6 @@ export default function Video() {
   });
 
   const [dragging, setDragging] = createSignal(false);
-
-  onMount(() => {
-    document.scrollingElement?.classList.add(
-      "scrollbar-none",
-    );
-    onCleanup(() => {
-      document.scrollingElement?.classList.remove(
-        "scrollbar-none",
-      );
-    });
-  });
 
   return (
     <>
@@ -178,13 +187,13 @@ export default function Video() {
       <Tabs
         value={tab()}
         onChange={(value) => setTab(value)}
-        class="flex size-full flex-col"
+        class="flex size-full flex-col overflow-y-auto scrollbar-none"
         defaultValue="2"
       >
         <div
-          class="sticky top-[var(--mobile-header-height)] z-10 flex h-12
-            w-full items-center gap-2 border-b border-border
-            bg-background/80 px-4 backdrop-blur sm:top-0"
+          class="sticky top-0 z-10 flex h-12 w-full items-center gap-2
+            border-b border-border bg-background/80 px-4 backdrop-blur
+            sm:top-0"
         >
           <h4 class="h4">
             {roomStatus.roomId ? (
@@ -197,61 +206,82 @@ export default function Video() {
             )}
           </h4>
           <div class="flex-1"></div>
-          <Show when={removedClientIds().length > 0}>
-            <Popover>
-              <PopoverTrigger
-                as={Button}
-                size="icon"
-                class="size-8"
-                variant="secondary"
-              >
-                <IconDelete class="size-4" />
-              </PopoverTrigger>
-              <PopoverContent class="flex flex-col gap-2">
-                <h4 class="h4">
-                  {t("common.action.restore")}
-                </h4>
-                <div class="grid grid-cols-4 gap-2">
-                  <For each={removedClientIds()}>
-                    {(clientId) => (
-                      <Show
-                        when={
-                          sessionService.clientViewData[
-                            clientId
-                          ]
-                        }
-                      >
-                        {(client) => (
-                          <Avatar
-                            class="size-10 cursor-pointer self-center"
-                            onClick={() => {
-                              setRemovedClientIds((prev) =>
-                                prev.filter(
-                                  (id) => id !== clientId,
-                                ),
-                              );
-                            }}
-                          >
-                            <AvatarImage
-                              src={
-                                client().avatar ?? undefined
-                              }
-                            />
-                            <AvatarFallback>
-                              {getInitials(client().name)}
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
-                      </Show>
-                    )}
-                  </For>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </Show>
           <Show when={gridRef()}>
             {(gridRef) => (
               <>
+                <Tooltip>
+                  <TooltipTrigger
+                    as={Switch}
+                    class="flex items-center justify-between"
+                    checked={float()}
+                    onChange={(isChecked: boolean) =>
+                      setFloat(isChecked)
+                    }
+                  >
+                    <SwitchControl>
+                      <SwitchThumb />
+                    </SwitchControl>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t("video.float")}
+                  </TooltipContent>
+                </Tooltip>
+                <Show when={removedClientIds().length > 0}>
+                  <Popover>
+                    <PopoverTrigger
+                      as={Button}
+                      size="icon"
+                      class="size-8"
+                      variant="secondary"
+                    >
+                      <IconDelete class="size-4" />
+                    </PopoverTrigger>
+                    <PopoverContent class="flex flex-col gap-2">
+                      <h4 class="h4">
+                        {t("common.action.restore")}
+                      </h4>
+                      <div class="grid grid-cols-4 gap-2">
+                        <For each={removedClientIds()}>
+                          {(clientId) => (
+                            <Show
+                              when={
+                                sessionService
+                                  .clientViewData[clientId]
+                              }
+                            >
+                              {(client) => (
+                                <Avatar
+                                  class="size-10 cursor-pointer self-center"
+                                  onClick={() => {
+                                    setRemovedClientIds(
+                                      (prev) =>
+                                        prev.filter(
+                                          (id) =>
+                                            id !== clientId,
+                                        ),
+                                    );
+                                  }}
+                                >
+                                  <AvatarImage
+                                    src={
+                                      client().avatar ??
+                                      undefined
+                                    }
+                                  />
+                                  <AvatarFallback>
+                                    {getInitials(
+                                      client().name,
+                                    )}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                            </Show>
+                          )}
+                        </For>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </Show>
                 <Tooltip>
                   <TooltipTrigger
                     as={Button}
@@ -263,7 +293,7 @@ export default function Video() {
                     <IconViewCompactAlt class="size-4" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    {t("common.action.compact_layout")}
+                    {t("video.compact_layout")}
                   </TooltipContent>
                 </Tooltip>
               </>
@@ -291,8 +321,8 @@ export default function Video() {
               </TooltipTrigger>
               <TooltipContent>
                 {playState()
-                  ? t("common.action.global_mute")
-                  : t("common.action.global_unmute")}
+                  ? t("video.global_mute")
+                  : t("video.global_unmute")}
               </TooltipContent>
             </Tooltip>
           </Show>
@@ -317,7 +347,7 @@ export default function Video() {
             });
           }}
         >
-          <GridItem
+          <SavedGridItem
             w={6}
             h={6}
             id={clientProfile.clientId}
@@ -325,9 +355,7 @@ export default function Video() {
           >
             <GridItemContent class="relative rounded-lg bg-muted shadow-lg">
               <VideoDisplay
-                class="absolute inset-0
-                  max-h-[calc(100vh-3rem-var(--mobile-header-height))] w-full
-                  sm:max-h-[calc(100vh-4rem)]"
+                class="absolute inset-0"
                 stream={localStream()}
                 name={`${clientProfile.name} (You)`}
                 avatar={clientProfile.avatar ?? undefined}
@@ -344,7 +372,7 @@ export default function Video() {
                 />
               </VideoDisplay>
             </GridItemContent>
-          </GridItem>
+          </SavedGridItem>
           <For
             each={Object.values(
               sessionService.clientViewData,
@@ -355,35 +383,35 @@ export default function Video() {
                 ),
             )}
           >
-            {(client) => (
-              <GridItem
-                w={client.stream !== undefined ? 6 : 3}
-                h={client.stream !== undefined ? 6 : 3}
-                id={client.clientId}
-              >
-                <GridItemContent class="relative rounded-lg bg-muted shadow-lg">
-                  <VideoDisplay
-                    class="absolute inset-0
-                      max-h-[calc(100vh-3rem-var(--mobile-header-height))] w-full
-                      sm:max-h-[calc(100vh-4rem)]"
-                    stream={client.stream}
-                    name={client.name}
-                    avatar={client.avatar ?? undefined}
-                    muted={true}
-                  >
-                    <RemoteToolbar
-                      class={cn(
-                        "absolute top-1 flex gap-1",
-                        isMobile()
-                          ? "right-1"
-                          : "left-1/2 -translate-x-1/2",
-                      )}
-                      client={client}
-                    />
-                  </VideoDisplay>
-                </GridItemContent>
-              </GridItem>
-            )}
+            {(client) => {
+              return (
+                <SavedGridItem
+                  w={6}
+                  h={6}
+                  id={client.clientId}
+                >
+                  <GridItemContent class="relative rounded-lg bg-muted shadow-lg">
+                    <VideoDisplay
+                      class="absolute inset-0"
+                      stream={client.stream}
+                      name={client.name}
+                      avatar={client.avatar ?? undefined}
+                      muted={true}
+                    >
+                      <RemoteToolbar
+                        class={cn(
+                          "absolute top-1 flex gap-1",
+                          isMobile()
+                            ? "right-1"
+                            : "left-1/2 -translate-x-1/2",
+                        )}
+                        client={client}
+                      />
+                    </VideoDisplay>
+                  </GridItemContent>
+                </SavedGridItem>
+              );
+            }}
           </For>
         </GridStack>
       </Tabs>

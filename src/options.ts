@@ -141,7 +141,7 @@ export const getDefaultAppOptions = () => {
     automaticCacheDeletion: false,
     bufferedAmountLowThreshold: 32 * 1024,
     maxMomeryCacheSlices: 12,
-    videoMaxBitrate: 128 * 1024 * 1024,
+    videoMaxBitrate: 25 * 1024 * 1024,
     servers: {
       stuns:
         import.meta.env.VITE_STUN_SERVERS?.split(",") ?? [],

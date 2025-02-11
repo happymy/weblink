@@ -4,12 +4,16 @@ import {
   createMemo,
   createSignal,
   JSX,
+  mergeProps,
   onCleanup,
   onMount,
   splitProps,
 } from "solid-js";
 import { useGridStackContext } from "./grid-context";
-import type { GridStackNode, GridStackPosition } from "gridstack";
+import type {
+  GridStackNode,
+  GridStackPosition,
+} from "gridstack";
 import { Dynamic } from "solid-js/web";
 import clsx from "clsx";
 import { layout } from "./grid";
@@ -85,17 +89,12 @@ export function GridItem(props: GridItemProps) {
     return options;
   });
 
-  const [savedLayout, setSavedLayout] = createSignal<GridStackPosition | undefined>(undefined);
-
-
-
   onMount(() => {
     const element = elementRef();
     if (!element) return;
     const savedLayout = layout[element.id];
     if (savedLayout) {
       delete layout[element.id];
-      setSavedLayout(savedLayout);
     }
 
     const widget = ctx.grid.makeWidget(element);
@@ -103,20 +102,30 @@ export function GridItem(props: GridItemProps) {
     createEffect(() => {
       const options = gridItemOptions();
       ctx.grid.update(element, options);
+      const node = widget.gridstackNode;
+      if (node) {
+        layout[element.id] = {
+          x: node.x,
+          y: node.y,
+          w: node.w,
+          h: node.h,
+        };
+      }
     });
 
     onCleanup(() => {
-      layout[element.id] = {
-        x: widget.gridstackNode?.x,
-        y: widget.gridstackNode?.y,
-        w: widget.gridstackNode?.w,
-        h: widget.gridstackNode?.h,
-      };
+      const node = widget.gridstackNode;
+      if (node) {
+        layout[element.id] = {
+          x: node.x,
+          y: node.y,
+          w: node.w,
+          h: node.h,
+        };
+      }
       ctx.grid.removeWidget(widget, false, false);
     });
   });
-
-  
 
   return (
     <Dynamic
@@ -127,10 +136,10 @@ export function GridItem(props: GridItemProps) {
         local.noRemovable && "grid-stack-non-removable",
       )}
       ref={(ref) => setElementRef(ref)}
-      gs-x={savedLayout()?.x ?? local.x}
-      gs-y={savedLayout()?.y ?? local.y}
-      gs-w={savedLayout()?.w ?? local.w}
-      gs-h={savedLayout()?.h ?? local.h}
+      gs-x={local.x}
+      gs-y={local.y}
+      gs-w={local.w}
+      gs-h={local.h}
       gs-autoPosition={local.autoPosition}
       gs-minW={local.minW}
       gs-maxW={local.maxW}
@@ -163,5 +172,33 @@ export const GridItemContent = (
     >
       {local.children}
     </div>
+  );
+};
+
+export type SavedGridItemProps = GridItemProps & {
+  id: string;
+};
+
+export const SavedGridItem = (
+  props: SavedGridItemProps,
+) => {
+  const savedLayout = layout[props.id];
+  if (savedLayout) {
+    delete layout[props.id];
+  }
+  const [local, other] = splitProps(props, [
+    "x",
+    "y",
+    "w",
+    "h",
+  ]);
+  return (
+    <GridItem
+      x={savedLayout?.x ?? local.x}
+      y={savedLayout?.y ?? local.y}
+      w={savedLayout?.w ?? local.w}
+      h={savedLayout?.h ?? local.h}
+      {...other}
+    />
   );
 };

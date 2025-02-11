@@ -1159,7 +1159,7 @@ export default function Settings() {
               <label class="flex flex-col gap-2">
                 <Slider
                   minValue={128 * 1024}
-                  maxValue={256 * 1024 * 1024}
+                  maxValue={150 * 1024 * 1024}
                   step={128 * 1024}
                   defaultValue={[
                     appOptions.videoMaxBitrate,
