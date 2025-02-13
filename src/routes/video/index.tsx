@@ -25,7 +25,6 @@ import {
   IconMicOff,
   IconPip,
   IconPipExit,
-  IconResetWrench,
   IconScreenShare,
   IconSettings,
   IconStopScreenShare,
@@ -35,7 +34,6 @@ import {
   IconVolumeOff,
   IconVolumeUp,
 } from "@/components/icons";
-import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/libs/cn";
 import { ClientInfo } from "@/libs/core/type";
 import { createIsMobile } from "@/libs/hooks/create-mobile";
@@ -58,11 +56,9 @@ import { createPictureInPicture } from "@/libs/hooks/picture-in-picture";
 import { createFullscreen } from "@/libs/hooks/fullscreen";
 import { FlexButton } from "./components/flex-button";
 import {
-  GridItem,
   GridItemContent,
   GridStack,
   GridStackRef,
-  layout,
   SavedGridItem,
 } from "@/libs/gridstack";
 import { createElementSize } from "@solid-primitives/resize-observer";
@@ -95,14 +91,6 @@ export default function Video() {
   const { roomStatus } = useWebRTC();
 
   const isMobile = createIsMobile();
-
-  const [tab, setTab] = createSignal(
-    isMobile() ? "1" : "2",
-  );
-
-  createEffect(() => {
-    setTab(isMobile() ? "1" : "2");
-  });
 
   const { setPlay, playState, hasAudio } = useAudioPlayer();
 
@@ -184,12 +172,7 @@ export default function Video() {
           <IconDelete class="size-8" />
         </div>
       </div>
-      <Tabs
-        value={tab()}
-        onChange={(value) => setTab(value)}
-        class="flex size-full flex-col overflow-y-auto scrollbar-none"
-        defaultValue="2"
-      >
+      <div class="flex size-full flex-col overflow-y-auto scrollbar-none">
         <div
           class="sticky top-0 z-10 flex h-12 w-full items-center gap-2
             border-b border-border bg-background/80 px-4 backdrop-blur
@@ -414,7 +397,7 @@ export default function Video() {
             }}
           </For>
         </GridStack>
-      </Tabs>
+      </div>
     </>
   );
 }
@@ -435,9 +418,12 @@ const RemoteToolbar = (props: {
     exitPictureInPicture,
   } = createPictureInPicture(videoRef);
 
-  createEffect(() => {
-    audioTracks().forEach((track) => {
-      track.enabled = !muted();
+  onMount(() => {
+    setMuted(audioTracks().some((track) => !track.enabled));
+    createEffect(() => {
+      audioTracks().forEach((track) => {
+        track.enabled = !muted();
+      });
     });
   });
 

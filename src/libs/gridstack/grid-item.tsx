@@ -102,15 +102,6 @@ export function GridItem(props: GridItemProps) {
     createEffect(() => {
       const options = gridItemOptions();
       ctx.grid.update(element, options);
-      const node = widget.gridstackNode;
-      if (node) {
-        layout[element.id] = {
-          x: node.x,
-          y: node.y,
-          w: node.w,
-          h: node.h,
-        };
-      }
     });
 
     onCleanup(() => {
